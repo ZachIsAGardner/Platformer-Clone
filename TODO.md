@@ -9,3 +9,4 @@ Input
   -check if hold key is a thing?
 -Refactor the global 'that' into something not stupid
 -holding key will fire it repeatedly, that is also stupid
+-You must press left after you lift right to get wanted input, lifting right while pressing left, will not move left, fix this!
