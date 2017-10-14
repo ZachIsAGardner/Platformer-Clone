@@ -1,18 +1,23 @@
 TO RUN:
--webpack main.js bundle.js
+-webpack --watch
 -open index.html
 
 ---
 
-Collision
--check all directions
--have multiple raycasts for vertical and horizontal collisions
--check all colliders
--Implement isGrounded boolean for jumping
+GAME:
+-Art?
+-Camera movement?
+-Framerate independent?
+-Clean up everything because it's just terrible
+  -seperate movement stuff from square
+  -split up square in general
+  -convert to ES6?
 
-Input
--Fix lifting key killing x velocity
-  -check if hold key is a thing?
+COLLISION:
+-have multiple raycasts for vertical and horizontal collisions
+-colored raycasts
+-grounded is kinda ghetto
+
+INPUT:
 -Refactor the global 'that' into something not stupid
--holding key will fire it repeatedly, that is also stupid
--You must press left after you lift right to get wanted input, lifting right while pressing left, will not move left, fix this!
+-Jump repeats
