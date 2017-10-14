@@ -1,3 +1,9 @@
+TO RUN:
+-webpack main.js bundle.js
+-open index.html
+
+---
+
 Collision
 -check all directions
 -have multiple raycasts for vertical and horizontal collisions

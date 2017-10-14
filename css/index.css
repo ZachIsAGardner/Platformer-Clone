@@ -1,0 +1,19 @@
+html {
+  background: #222324;
+  /*background: white;*/
+}
+
+canvas {
+  padding: 0;
+  margin: auto;
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  background: #bbbfbf;
+  border: 5px solid black;
+  box-shadow: 5px 5px 20px #00000b;
+}

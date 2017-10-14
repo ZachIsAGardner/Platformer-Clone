@@ -33,9 +33,6 @@
 /******/ 	// expose the module cache
 /******/ 	__webpack_require__.c = installedModules;
 /******/
-/******/ 	// identity function for calling harmony imports with the correct context
-/******/ 	__webpack_require__.i = function(value) { return value; };
-/******/
 /******/ 	// define getter function for harmony exports
 /******/ 	__webpack_require__.d = function(exports, name, getter) {
 /******/ 		if(!__webpack_require__.o(exports, name)) {
@@ -63,19 +60,38 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 3);
+/******/ 	return __webpack_require__(__webpack_require__.s = 0);
 /******/ })
 /************************************************************************/
 /******/ ([
 /* 0 */
 /***/ (function(module, exports, __webpack_require__) {
 
+const Game = __webpack_require__(1);
+
+const canvasEl = document.getElementsByTagName("canvas")[0];
+
+// canvasEl.width = window.innerWidth;
+// canvasEl.height = window.innerHeight;
+canvasEl.width = 1280;
+canvasEl.height = 720;
+
+new Game(canvasEl.width, canvasEl.height).start(canvasEl);
+
+
+/***/ }),
+/* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
 const Square = __webpack_require__(2);
-const Input = __webpack_require__(1);
+const Input = __webpack_require__(3);
 
 const ground = new Square(0, 450, 500, 40, 'black', []);
 const ground2 = new Square(0, 315, 400, 40, 'black', []);
-const square = new Square(50, 375, 25, 50, 'pink', [ground, ground2]);
+const ground3 = new Square(500, 150, 40, 400, 'black', []);
+const ground4 = new Square(50, 150, 40, 400, 'black', []);
+
+const square = new Square(100, 375, 25, 50, 'pink', [ground, ground2, ground3, ground4]);
 
 const input = new Input(square);
 
@@ -103,6 +119,8 @@ Game.prototype.start = function (canvasEl) {
 
     ground.render(ctx);
     ground2.render(ctx);
+    ground3.render(ctx);
+    ground4.render(ctx);
 
     requestAnimationFrame(animateCallback);
   };
@@ -111,44 +129,6 @@ Game.prototype.start = function (canvasEl) {
 };
 
 module.exports = Game;
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports) {
-
-Input = function (player) {
-  this.player = player;
-  that = this;
-};
-
-
-document.addEventListener('keydown', function(event) {
-
-  if(event.keyCode == 87) {
-    that.player.jump();
-  }
-  if(event.keyCode == 65) {
-    that.player.moveX = -1;
-  } else if(event.keyCode == 68) {
-    that.player.moveX = 1;
-  }
-
-  // that.player.calcVelX(moveX);
-});
-
-document.addEventListener('keyup', function(event) {
-
-  if (event.keyCode == 65 || event.keyCode == 68) {
-    that.player.moveX = 0;
-  }
-  if (event.keyCode == 87) {
-    that.player.minJump();
-  }
-
-});
-
-module.exports = Input;
 
 
 /***/ }),
@@ -183,9 +163,9 @@ Square.prototype.update = function() {
 
 Square.prototype.ghettoLerp = function(from, to, time) {
   if (from > to) {
-    from -= .05;
+    from -= 0.1;
   } else {
-    from += .05;
+    from += 0.1;
   }
 
   if (from < to && to < 0) {
@@ -200,40 +180,63 @@ Square.prototype.ghettoLerp = function(from, to, time) {
 
 Square.prototype.calcVelX = function() {
   this.velX = this.ghettoLerp(this.velX, this.moveX, 1);
-}
+};
 Square.prototype.calcVelY = function() {
   this.velY += this.grav;
 };
 
 Square.prototype.collisions = function(ctx) {
-  //vertical collisions
-  let start = 0;
-  let end = 0;
 
-  if (this.velY > 0) {
-    start = [this.calcCenter()[0], this.calcCenter()[1] + (this.height / 2)];
-    end = [this.calcCenter()[0], this.calcCenter()[1] + (this.height / 2) + Math.abs(this.velY)];
+  //horizontal collisions
+  let startX = 0;
+  let endX = 0;
+
+  if (this.velX > 0) {
+    startX = [this.calcCenter()[0] + (this.width / 2), this.calcCenter()[1]];
+    endX = [this.calcCenter()[0] + (this.width / 2) + Math.abs(this.velX), this.calcCenter()[1]];
   } else {
-    start = [this.calcCenter()[0], this.calcCenter()[1] - (this.height / 2)];
-    end = [this.calcCenter()[0], this.calcCenter()[1] - (this.height / 2) - Math.abs(this.velY)];
+    startX = [this.calcCenter()[0] - (this.width / 2), this.calcCenter()[1]];
+    endX = [this.calcCenter()[0] - (this.width / 2) - Math.abs(this.velX), this.calcCenter()[1]];
   }
 
-  this.raycast(start, end, ctx);
+  this.raycast(startX, endX, ctx, 'horizontal');
+
+  //vertical collisions
+  let startY = 0;
+  let endY = 0;
+
+  if (this.velY > 0) {
+    startY = [this.calcCenter()[0], this.calcCenter()[1] + (this.height / 2)];
+    endY = [this.calcCenter()[0], this.calcCenter()[1] + (this.height / 2) + Math.abs(this.velY)];
+  } else {
+    startY = [this.calcCenter()[0], this.calcCenter()[1] - (this.height / 2)];
+    endY = [this.calcCenter()[0], this.calcCenter()[1] - (this.height / 2) - Math.abs(this.velY)];
+  }
+
+  this.raycast(startY, endY, ctx, 'vertical');
 };
 
-Square.prototype.checkCollision = function (point) {
+Square.prototype.checkCollision = function (point, type) {
   //checks if point is within any of the colliders
   for (var i = 0; i < this.colliders.length; i++) {
     if (point[1] > this.colliders[i].calcCenter()[1] - (this.colliders[i].height / 2) && point[1] < this.colliders[i].calcCenter()[1] + (this.colliders[i].height / 2)) {
       if (point[0] > this.colliders[i].calcCenter()[0] - (this.colliders[i].width / 2) && point[0] < this.colliders[i].calcCenter()[0] + (this.colliders[i].width / 2)) {
-        if (this.velY > 0) {
-          this.centerY = (this.colliders[i].calcCenter()[1] - this.colliders[i].height / 2) - this.height;
-        } else {
-          console.log('up');
-          this.centerY = (this.colliders[i].calcCenter()[1] + this.colliders[i].height / 2);
+        if (type === 'vertical') {
+          if (this.velY > 0) {
+            this.centerY = (this.colliders[i].calcCenter()[1] - this.colliders[i].height / 2) - this.height;
+          } else {
+            this.centerY = (this.colliders[i].calcCenter()[1] + this.colliders[i].height / 2);
+          }
+          this.velY = 0;
+        } else if (type === 'horizontal') {
+          if (this.velX > 0) {
+            this.centerX = (this.colliders[i].calcCenter()[0] - this.colliders[i].width / 2) - this.width;
+          } else {
+            this.centerX = (this.colliders[i].calcCenter()[0] + this.colliders[i].width / 2);
+          }
+          this.velX = 0;
         }
 
-        this.velY = 0;
       }
     }
   }
@@ -272,9 +275,9 @@ Square.prototype.calcCenter = function() {
 //--- raycast, seperate into another file later if you feel like it i dont know
 //-
 
-Square.prototype.raycast = function(start, end, ctx) {
+Square.prototype.raycast = function(start, end, ctx, type) {
   this.renderRaycast(start, end, 'red', ctx);
-  this.checkCollision(end);
+  this.checkCollision(end, type);
 };
 
 Square.prototype.renderRaycast = function(start, end, color, ctx) {
@@ -290,15 +293,40 @@ module.exports = Square;
 
 /***/ }),
 /* 3 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports) {
 
-const Game = __webpack_require__(0);
+Input = function (player) {
+  this.player = player;
+  that = this;
+};
 
-const canvasEl = document.getElementsByTagName("canvas")[0];
-canvasEl.height = window.innerHeight;
-canvasEl.width = window.innerWidth;
 
-new Game(canvasEl.width, canvasEl.height).start(canvasEl);
+document.addEventListener('keydown', function(event) {
+
+  if(event.keyCode == 87) {
+    that.player.jump();
+  }
+  if(event.keyCode == 65) {
+    that.player.moveX = -1;
+  } else if(event.keyCode == 68) {
+    that.player.moveX = 1;
+  }
+
+  // that.player.calcVelX(moveX);
+});
+
+document.addEventListener('keyup', function(event) {
+
+  if (event.keyCode == 65 || event.keyCode == 68) {
+    that.player.moveX = 0;
+  }
+  if (event.keyCode == 87) {
+    that.player.minJump();
+  }
+
+});
+
+module.exports = Input;
 
 
 /***/ })
