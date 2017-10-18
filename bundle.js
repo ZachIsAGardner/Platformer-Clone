@@ -97,9 +97,22 @@ const square = new Square(50, 375, 30, 50, 'pink', colliders);
 
 const input = new Input(square);
 
+//---
+
+var offsetX = 0;
+var offsetY = 0;
+
 Game = function (xDim, yDim) {
   this.xDim = xDim;
   this.yDim = yDim;
+};
+
+Game.prototype.lerp = function(from, to, time) {
+  return from + time * (to - from);
+};
+
+Game.prototype.moveViewport = function(ctx) {
+  // ctx.translate(-1, 0);
 };
 
 Game.prototype.render = function(ctx) {
@@ -110,8 +123,7 @@ Game.prototype.start = function (canvasEl) {
   const ctx = canvasEl.getContext("2d");
 
   const animateCallback = () => {
-
-
+    this.moveViewport(ctx);
     //clear canvas then render objects
     this.render(ctx);
 

@@ -1,4 +1,5 @@
 TO RUN:
+-npm install
 -webpack --watch
 -open index.html
 
@@ -7,6 +8,7 @@ TO RUN:
 GAME:
 -Art?
 -Camera movement?
+  -Derender stuff offscreen
 -Framerate independent?
 -Clean up everything because it's just terrible
   -seperate movement stuff from square
@@ -21,3 +23,6 @@ COLLISION:
 INPUT:
 -Refactor the global 'that' into something not stupid
 -Jump repeats
+
+REFERENCES:
+https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D
