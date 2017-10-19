@@ -1,6 +1,6 @@
 TO RUN:
 -npm install
--webpack --watch
+-npm run melon (webpack --watch)
 -open index.html
 
 ---
@@ -26,3 +26,4 @@ INPUT:
 
 REFERENCES:
 https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D
+https://github.com/SebLague/2DPlatformer-Tutorial

@@ -83,6 +83,7 @@ new Game(canvasEl.width, canvasEl.height).start(canvasEl);
 /* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
+const Util = __webpack_require__(4);
 const Square = __webpack_require__(2);
 const Input = __webpack_require__(3);
 
@@ -96,6 +97,7 @@ const colliders = [ground, ground2, ground3, ground4, ground5];
 const square = new Square(50, 375, 30, 50, 'pink', colliders);
 
 const input = new Input(square);
+const util = new Util();
 
 //---
 
@@ -107,26 +109,27 @@ Game = function (xDim, yDim) {
   this.yDim = yDim;
 };
 
-Game.prototype.lerp = function(from, to, time) {
-  return from + time * (to - from);
-};
+Game.prototype.moveViewport = function(ctx, canvasEl) {
+  let cameraCenter = [-square.centerX + canvasEl.width / 2, -square.centerY + canvasEl.height / 2];
+  offsetX = util.lerp(offsetX, cameraCenter[0], 0.05);
+  offsetY = util.lerp(offsetY, cameraCenter[1], 0.05);
 
-Game.prototype.moveViewport = function(ctx) {
-  // ctx.translate(-1, 0);
+  ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
 };
 
 Game.prototype.render = function(ctx) {
-  ctx.clearRect(0, 0, this.xDim, this.yDim);
+  //i have no idea why offset x and offset y have to be multiplied by -1
+  ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
 };
 
 Game.prototype.start = function (canvasEl) {
   const ctx = canvasEl.getContext("2d");
 
   const animateCallback = () => {
-    this.moveViewport(ctx);
     //clear canvas then render objects
     this.render(ctx);
 
+    this.moveViewport(ctx, canvasEl);
     square.update(ctx);
 
     colliders.forEach((collider) => {
@@ -144,7 +147,10 @@ module.exports = Game;
 
 /***/ }),
 /* 2 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
+
+const Util = __webpack_require__(4);
+const util = new Util();
 
 Square = function (centerX, centerY, width, height, color, colliders, ctx) {
   this.centerX = centerX;
@@ -203,15 +209,11 @@ Square.prototype.handleInput = function() {
   }
 };
 
-Square.prototype.lerp = function(from, to, time) {
-  return from + time * (to - from);
-};
-
 Square.prototype.calcVelX = function() {
   if (this.grounded) {
-    this.velX = this.lerp(this.velX, this.moveX, this.groundAcc);
+    this.velX = util.lerp(this.velX, this.moveX, this.groundAcc);
   } else {
-    this.velX = this.lerp(this.velX, this.moveX, this.airAcc);
+    this.velX = util.lerp(this.velX, this.moveX, this.airAcc);
   }
 };
 Square.prototype.calcVelY = function() {
@@ -248,7 +250,7 @@ Square.prototype.collisions = function(ctx) {
 
   this.raycast(startY, endY, ctx, 'vertical');
 
-  //checkground
+  //check if grounded
   this.raycast([this.calcCenter()[0], this.calcCenter()[1] + (this.height / 2)], [this.calcCenter()[0], this.calcCenter()[1] + (this.height / 2) + 10], ctx, 'grounded');
 };
 
@@ -319,7 +321,9 @@ Square.prototype.calcCenter = function() {
 //-
 
 Square.prototype.raycast = function(start, end, ctx, type) {
-  this.renderRaycast(start, end, 'red', ctx);
+  if (type !== 'grounded') {
+    this.renderRaycast(start, end, 'red', ctx);
+  }
   this.checkCollision(end, type);
 };
 
@@ -370,6 +374,21 @@ document.addEventListener('keyup', function(event) {
 });
 
 module.exports = Input;
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports) {
+
+Util = function() {
+  //constructor
+};
+
+Util.prototype.lerp = function(from, to, time) {
+  return from + time * (to - from);
+};
+
+module.exports = Util;
 
 
 /***/ })
