@@ -15,7 +15,7 @@ GAME:
 -Clean up everything because it's just terrible
   -seperate movement stuff from square
   -split up square in general
-  -convert to ES6?
+  -convert to ES6
 
 COLLISION:
 -colored raycasts

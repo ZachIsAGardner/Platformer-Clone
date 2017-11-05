@@ -65,9 +65,10 @@
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ (function(module, exports) {
+/***/ (function(module, __webpack_exports__) {
 
-Util = function() {
+"use strict";
+const Util = function() {
   //constructor
 };
 
@@ -99,21 +100,18 @@ new Game(canvasEl.width, canvasEl.height).start(canvasEl);
 /***/ (function(module, exports, __webpack_require__) {
 
 const Util = __webpack_require__(0);
+
 const Square = __webpack_require__(3);
+const Shape = __webpack_require__(5);
+const MovingObject = __webpack_require__(6);
+
 const Input = __webpack_require__(4);
 
-const ground = new Square(0, 450, 500, 500, 'black', []);
-const ground2 = new Square(0, 0, 40, 800, 'black', []);
-const ground3 = new Square(600, 450, 500, 400, 'black', []);
-const ground4 = new Square(200, 400, 100, 50, 'black', []);
-const ground5 = new Square(800, 350, 150, 25, 'black', []);
-const ground6 = new Square(0, 1800, 1200, 25, 'black', []);
-const colliders = [ground, ground2, ground3, ground4, ground5, ground6];
+
 // const colliders = [];
 
-const square = new Square(50, 375, 30, 50, 'pink', colliders);
+const redSquare = {x: 170, y: 375, width: 30, height: 50, color: 'red'};
 
-const input = new Input(square);
 const util = new Util();
 
 //---
@@ -121,43 +119,54 @@ const util = new Util();
 var offsetX = 0;
 var offsetY = 0;
 
-Game = function (xDim, yDim) {
-  this.xDim = xDim;
-  this.yDim = yDim;
-};
+class Game {
+  constructor(xDim, yDim) {
+    this.xDim = xDim;
+    this.yDim = yDim;
+  }
 
-Game.prototype.moveViewport = function(ctx, canvasEl) {
-  let cameraCenter = [-square.centerX + canvasEl.width / 2, -square.centerY + canvasEl.height / 2];
-  offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
-  offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
+  moveViewport(ctx, canvasEl) {
+    // let cameraCenter = [-square.centerX + canvasEl.width / 2, -square.centerY + canvasEl.height / 2];
+    // offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
+    // offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
+    //
+    // ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
+  }
 
-  ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
-};
+  render(ctx) {
+    //i have no idea why offset x and offset y have to be multiplied by -1
+    ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
+  }
 
-Game.prototype.render = function(ctx) {
-  //i have no idea why offset x and offset y have to be multiplied by -1
-  ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
-};
+  start(canvasEl) {
+    const ctx = canvasEl.getContext("2d");
 
-Game.prototype.start = function (canvasEl) {
-  const ctx = canvasEl.getContext("2d");
+    const ground = new Shape({x: 200, y: 450, width: 200, height: 30, color: 'black'}, ctx);
+    const ground2 = new Shape({x: 120, y: 300, width: 30, height: 600, color: 'black'}, ctx);
+    const ground3 = new Shape({x: 200, y: 320, width: 200, height: 30, color: 'black'}, ctx);
 
-  const animateCallback = () => {
-    //clear canvas then render objects
-    this.render(ctx);
+    const colliders = [ground, ground2, ground3];
 
-    this.moveViewport(ctx, canvasEl);
-    square.update(ctx);
+    const mover = new MovingObject(redSquare, colliders, ctx);
 
-    colliders.forEach((collider) => {
-      collider.render(ctx);
-    });
+    const animateCallback = () => {
+      //clear canvas then render objects
+      this.render(ctx);
 
-    requestAnimationFrame(animateCallback);
-  };
+      this.moveViewport(ctx, canvasEl);
+      // square.update(ctx);
+      mover.update();
 
-  animateCallback();
-};
+      colliders.forEach((collider) => {
+        collider.render(ctx);
+      });
+
+      requestAnimationFrame(animateCallback);
+    };
+
+    animateCallback();
+  }
+}
 
 module.exports = Game;
 
@@ -169,205 +178,205 @@ module.exports = Game;
 const Util = __webpack_require__(0);
 const util = new Util();
 
-Square = function (centerX, centerY, width, height, color, colliders, ctx) {
-  this.centerX = centerX;
-  this.centerY = centerY;
-  this.width = width;
-  this.height = height;
-  this.color = color;
+class Square {
+  constructor(centerX, centerY, width, height, color, colliders, ctx) {
+    this.centerX = centerX;
+    this.centerY = centerY;
+    this.width = width;
+    this.height = height;
+    this.color = color;
 
-  this.colliders = colliders;
+    this.colliders = colliders;
 
-  this.moveX = 0;
-  this.velX = 0;
-  this.moveSpeed = 4;
-  this.groundAcc = 0.105;
-  this.airAcc = 0.045;
-
-  this.velY = 0;
-  this.minJumpVel = -3;
-  this.maxJumpVel = -7.25;
-  this.grav = 0.2;
-
-  this.grounded = false;
-
-  this.leftHeld = false;
-  this.rightHeld = false;
-  this.jumpPressed = false;
-
-  this.ctx = ctx;
-};
-
-Square.prototype.update = function(ctx) {
-  this.handleInput();
-  this.movePos();
-  this.render(ctx);
-  this.collisions(ctx);
-  // this.debug();
-};
-
-Square.prototype.debug = function() {
-  //debug stuff will ge here maybe
-};
-
-Square.prototype.handleInput = function() {
-  if (!this.leftHeld && !this.rightHeld) {
     this.moveX = 0;
-  }
-  if (this.leftHeld && !this.rightHeld) {
-    this.moveX = -1;
-  }
-  if (this.rightHeld && !this.leftHeld) {
-    this.moveX = 1;
-  }
-  if (this.jumpPressed) {
-    this.jump();
+    this.velX = 0;
+    this.moveSpeed = 4;
+    this.groundAcc = 0.105;
+    this.airAcc = 0.045;
+
+    this.velY = 0;
+    this.minJumpVel = -3;
+    this.maxJumpVel = -7.25;
+    this.grav = 0.2;
+
+    this.grounded = false;
+
+    this.leftHeld = false;
+    this.rightHeld = false;
     this.jumpPressed = false;
+
+    this.ctx = ctx;
   }
-};
 
-Square.prototype.calcVelX = function() {
-  if (this.grounded) {
-    this.velX = util.lerp(this.velX, this.moveX, this.groundAcc);
-  } else {
-    this.velX = util.lerp(this.velX, this.moveX, this.airAcc);
+  update(ctx) {
+    this.handleInput();
+    this.movePos();
+    this.render(ctx);
+    this.collisions(ctx);
   }
-};
-Square.prototype.calcVelY = function() {
-  this.velY += this.grav;
-};
 
-Square.prototype.collisions = function(ctx) {
-  this.horizontalCollisions(ctx);
-  this.grounded = this.verticalCollisions(ctx);
-};
-
-Square.prototype.horizontalCollisions = function(ctx) {
-  const amount = 4;
-  //Prevents a hit with a collider below the square
-  const skin = 0.5;
-
-  for (var i = 0; i < amount; i++) {
-    let startX = 0;
-    let endX = 0;
-
-    let spacing = (i * ((this.height - skin) / (amount - 1)));
-
-    if (this.velX > 0) {
-      startX = [this.calcCenter()[0] + (this.width / 2), this.centerY + spacing];
-      endX = [this.calcCenter()[0] + (this.width / 2) + Math.abs(this.velX), this.centerY + spacing];
-    } else {
-      startX = [this.calcCenter()[0] - (this.width / 2), this.centerY + spacing];
-      endX = [this.calcCenter()[0] - (this.width / 2) - Math.abs(this.velX), this.centerY + spacing];
+  handleInput() {
+    if (!this.leftHeld && !this.rightHeld) {
+      this.moveX = 0;
     }
+    if (this.leftHeld && !this.rightHeld) {
+      this.moveX = -1;
+    }
+    if (this.rightHeld && !this.leftHeld) {
+      this.moveX = 1;
+    }
+    if (this.jumpPressed) {
+      this.jump();
+      this.jumpPressed = false;
+    }
+  }
 
-    let hit = this.raycast(startX, endX, ctx, 'horizontal');
+  calcVelX() {
+    if (this.grounded) {
+      this.velX = util.lerp(this.velX, this.moveX, this.groundAcc);
+    } else {
+      this.velX = util.lerp(this.velX, this.moveX, this.airAcc);
+    }
+  }
 
-    if (hit) {
+  calcVelY() {
+    this.velY += this.grav;
+  }
+
+  minJump() {
+    if (this.velY < this.minJumpVel) {
+      this.velY = this.minJumpVel;
+    }
+  }
+
+  jump() {
+    if (this.grounded) {
+      this.velY = this.maxJumpVel;
+    }
+  }
+
+  movePos() {
+    this.calcVelX();
+    this.centerX += (this.velX * this.moveSpeed);
+
+    this.calcVelY();
+    this.centerY += this.velY;
+  }
+
+  //---
+
+  collisions(ctx) {
+    this.horizontalCollisions(ctx);
+    this.grounded = this.verticalCollisions(ctx);
+  }
+
+  horizontalCollisions(ctx) {
+    const amount = 4;
+    //Prevents a hit with a collider below the square
+    const skin = 0.5;
+
+    for (var i = 0; i < amount; i++) {
+      let startX = 0;
+      let endX = 0;
+
+      let spacing = (i * ((this.height - skin) / (amount - 1)));
+
       if (this.velX > 0) {
-        this.centerX = (hit.collider.calcCenter()[0] - hit.collider.width / 2) - this.width;
+        startX = [this.calcCenter()[0] + (this.width / 2), this.centerY + spacing];
+        endX = [this.calcCenter()[0] + (this.width / 2) + Math.abs(this.velX), this.centerY + spacing];
       } else {
-        this.centerX = (hit.collider.calcCenter()[0] + hit.collider.width / 2);
+        startX = [this.calcCenter()[0] - (this.width / 2), this.centerY + spacing];
+        endX = [this.calcCenter()[0] - (this.width / 2) - Math.abs(this.velX), this.centerY + spacing];
       }
-      this.velX = 0;
+
+      let hit = this.raycast(startX, endX, ctx, 'horizontal');
+
+      if (hit) {
+        if (this.velX > 0) {
+          this.centerX = (hit.collider.calcCenter()[0] - hit.collider.width / 2) - this.width;
+        } else {
+          this.centerX = (hit.collider.calcCenter()[0] + hit.collider.width / 2);
+        }
+        this.velX = 0;
+      }
     }
   }
-};
 
-Square.prototype.verticalCollisions = function(ctx) {
-  const amount = 4;
+  verticalCollisions(ctx) {
+    const amount = 4;
 
-  let anyCollisions = false;
+    let anyCollisions = false;
 
-  for (var i = 0; i < amount; i++) {
-    let startY = 0;
-    let endY = 0;
+    for (var i = 0; i < amount; i++) {
+      let startY = 0;
+      let endY = 0;
 
-    let spacing = (i * (this.width / (amount - 1)));
+      let spacing = (i * (this.width / (amount - 1)));
 
-    if (this.velY > 0) {
-      startY = [this.centerX + spacing, this.calcCenter()[1] + (this.height / 2)];
-      endY = [this.centerX + spacing, this.calcCenter()[1] + (this.height / 2) + Math.abs(this.velY)];
-    } else {
-      startY = [this.centerX + spacing, this.calcCenter()[1] - (this.height / 2)];
-      endY = [this.centerX + spacing, this.calcCenter()[1] - (this.height / 2) - Math.abs(this.velY)];
-    }
-
-    let hit = this.raycast(startY, endY, ctx, 'vertical');
-
-    if (hit) {
       if (this.velY > 0) {
-        this.centerY = (hit.collider.calcCenter()[1] - hit.collider.height / 2) - this.height;
+        startY = [this.centerX + spacing, this.calcCenter()[1] + (this.height / 2)];
+        endY = [this.centerX + spacing, this.calcCenter()[1] + (this.height / 2) + Math.abs(this.velY)];
       } else {
-        this.centerY = (hit.collider.calcCenter()[1] + hit.collider.height / 2);
+        startY = [this.centerX + spacing, this.calcCenter()[1] - (this.height / 2)];
+        endY = [this.centerX + spacing, this.calcCenter()[1] - (this.height / 2) - Math.abs(this.velY)];
       }
 
-      anyCollisions = true;
-      this.velY = 0;
+      let hit = this.raycast(startY, endY, ctx, 'vertical');
+
+      if (hit) {
+        if (this.velY > 0) {
+          this.centerY = (hit.collider.calcCenter()[1] - hit.collider.height / 2) - this.height;
+        } else {
+          this.centerY = (hit.collider.calcCenter()[1] + hit.collider.height / 2);
+        }
+
+        anyCollisions = true;
+        this.velY = 0;
+      }
+
     }
-
+    return anyCollisions;
   }
-  return anyCollisions;
-};
 
-Square.prototype.checkCollision = function (point, type) {
-  //checks if point is within any of the colliders
-  let collision = false;
+  checkCollision(point, type) {
+    //checks if point is within any of the colliders
+    let collision = false;
 
-  for (var i = 0; i < this.colliders.length; i++) {
-    if (point[1] > this.colliders[i].calcCenter()[1] - (this.colliders[i].height / 2) && point[1] < this.colliders[i].calcCenter()[1] + (this.colliders[i].height / 2)) {
-      if (point[0] > this.colliders[i].calcCenter()[0] - (this.colliders[i].width / 2) && point[0] < this.colliders[i].calcCenter()[0] + (this.colliders[i].width / 2)) {
-        return { collider: this.colliders[i]};
+    for (var i = 0; i < this.colliders.length; i++) {
+      if (point[1] > this.colliders[i].calcCenter()[1] - (this.colliders[i].height / 2) && point[1] < this.colliders[i].calcCenter()[1] + (this.colliders[i].height / 2)) {
+        if (point[0] > this.colliders[i].calcCenter()[0] - (this.colliders[i].width / 2) && point[0] < this.colliders[i].calcCenter()[0] + (this.colliders[i].width / 2)) {
+          return { collider: this.colliders[i]};
+        }
       }
     }
   }
-};
 
-Square.prototype.minJump = function() {
-  if (this.velY < this.minJumpVel) {
-    this.velY = this.minJumpVel;
+  //---
+
+  render(ctx) {
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.centerX, this.centerY, this.width, this.height);
   }
-};
-Square.prototype.jump = function() {
-  if (this.grounded) {
-    this.velY = this.maxJumpVel;
+
+  calcCenter() {
+    return [this.centerX + (this.width / 2), this.centerY + (this.height / 2)];
   }
-};
 
-Square.prototype.movePos = function() {
-  this.calcVelX();
-  this.centerX += (this.velX * this.moveSpeed);
-
-  this.calcVelY();
-  this.centerY += this.velY;
-};
-
-Square.prototype.render = function(ctx) {
-  ctx.fillStyle = this.color;
-  ctx.fillRect(this.centerX, this.centerY, this.width, this.height);
-};
-
-Square.prototype.calcCenter = function() {
-  return [this.centerX + (this.width / 2), this.centerY + (this.height / 2)];
-};
-
-//-
-//--- raycast, seperate into another file later if you feel like it i dont know
-//-
-
-Square.prototype.raycast = function(start, end, ctx, type) {
-  if (type !== 'grounded') {
-    this.renderRaycast(start, end, 'red', ctx);
+  raycast(start, end, ctx, type) {
+    if (type !== 'grounded') {
+      this.renderRaycast(start, end, 'red', ctx);
+    }
+    return this.checkCollision(end, type);
   }
-  return this.checkCollision(end, type);
-};
 
-Square.prototype.renderRaycast = function(start, end, color, ctx) {
-  ctx.beginPath();
-  ctx.moveTo(start[0], start[1]);
-  ctx.lineTo(end[0], end[1]);
-  ctx.stroke();
-};
+  renderRaycast(start, end, color, ctx) {
+    ctx.beginPath();
+    ctx.moveTo(start[0], start[1]);
+    ctx.lineTo(end[0], end[1]);
+    ctx.stroke();
+  }
+
+}
 
 module.exports = Square;
 
@@ -376,39 +385,323 @@ module.exports = Square;
 /* 4 */
 /***/ (function(module, exports) {
 
-Input = function (player) {
-  this.player = player;
-  that = this;
+const Input = function (entity) {
+
+  let inputs = {
+    leftHeld: false,
+    rightHeld: false,
+    jumpPressed: false,
+    jumpReleased: false
+  };
+
+  const update = () => {
+    inputs.jumpReleased = false;
+    inputs.jumpPressed = false;
+  };
+
+  window.onkeydown = (e) => {
+    if(e.keyCode === 87) {
+      inputs.jumpPressed = true;
+    }
+    if(e.keyCode === 65) {
+      inputs.leftHeld = true;
+    } else if(e.keyCode === 68) {
+      inputs.rightHeld = true;
+    }
+  };
+
+  window.onkeyup = (e) => {
+    if (e.keyCode === 65) {
+      inputs.leftHeld = false;
+    }
+    if (e.keyCode === 68) {
+      inputs.rightHeld = false;
+    }
+    if (e.keyCode === 87) {
+      inputs.jumpReleased = true;
+    }
+  };
+
+  return {inputs, update};
 };
 
-document.addEventListener('keydown', function(event) {
-
-  if(event.keyCode == 87) {
-    that.player.jumpPressed = true;
-  }
-  if(event.keyCode == 65) {
-    that.player.leftHeld = true;
-  } else if(event.keyCode == 68) {
-    that.player.rightHeld = true;
-  }
-
-});
-
-document.addEventListener('keyup', function(event) {
-
-  if (event.keyCode == 65) {
-    that.player.leftHeld = false;
-  }
-  if (event.keyCode == 68) {
-    that.player.rightHeld = false;
-  }
-  if (event.keyCode == 87) {
-    that.player.minJump();
-  }
-
-});
-
 module.exports = Input;
+
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports) {
+
+class Shape {
+  constructor(params, ctx) {
+    this.width = params.width;
+    this.height = params.height;
+    this.color = params.color;
+
+    this.pos = {x: 0, y: 0};
+    this.setPos(params.x, params.y);
+
+    this.ctx = ctx;
+  }
+
+  update() {
+    this.render();
+  }
+
+  render() {
+    this.ctx.fillStyle = this.color;
+    this.ctx.fillRect(this.pos.x, this.pos.y, this.width, this.height);
+  }
+
+  setPos(x, y) {
+    this.pos = {
+      x: x - (this.width / 2),
+      y: y - (this.height / 2)
+    };
+  }
+
+  center() {
+    return {
+      x: this.pos.x + (this.width / 2),
+      y: this.pos.y + (this.height / 2)
+    };
+  }
+}
+
+module.exports = Shape;
+
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Util = __webpack_require__(0);
+const util = new Util();
+const Shape = __webpack_require__(5);
+const Input = __webpack_require__(4);
+const Collision = __webpack_require__(7);
+
+class MovingObject {
+  constructor(shapeParameters, colliders, ctx) {
+    this.shape = new Shape(shapeParameters, ctx);
+    this.vel = {x: 0, y: 0};
+    this.input = {x: 0, y: 0, jump: false};
+    this.inputFetcher = new Input();
+    this.stats = {
+      speed: 2,
+      groundAcc: 0.105,
+      airAcc: 0.045,
+      minJump: -3.5,
+      jump: -7.25,
+      grav: 0.2
+    };
+
+    this.colliders = colliders;
+    this.collision = new Collision(this, ctx);
+  }
+
+  update() {
+    this.handleInput();
+    this.inputFetcher.update();
+
+    this.movePos();
+    this.calcVel();
+    this.shape.render();
+
+    this.collision.collisions();
+  }
+
+  handleInput() {
+    if (!this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 0;
+    }
+    if (this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = -1;
+    }
+    if (!this.inputFetcher.inputs.leftHeld
+      && this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 1;
+    }
+    if (this.inputFetcher.inputs.jumpPressed
+      && this.collision.grounded) {
+      this.jump();
+    }
+    if (this.inputFetcher.inputs.jumpReleased
+      && this.vel.y < this.stats.minJump
+      && !this.collision.grounded) {
+      this.minJump();
+    }
+  }
+
+  calcVel() {
+    this.vel.x = util.lerp(this.vel.x, (this.input.x * this.stats.speed), this.stats.groundAcc);
+    this.vel.y += this.stats.grav;
+  }
+
+  minJump() {
+    this.vel.y = this.stats.minJump;
+  }
+  jump() {
+    this.vel.y = this.stats.jump;
+  }
+
+  movePos() {
+    this.shape.pos.x += this.vel.x * this.stats.speed;
+    this.shape.pos.y += this.vel.y;
+  }
+}
+
+module.exports = MovingObject;
+
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports) {
+
+class Collision {
+  constructor(object, ctx) {
+    this.ctx = ctx;
+    this.raycastAmount = 4;
+    //Prevents a hit with a collider below the square
+    this.skin = 0.5;
+
+    this.object = object;
+    this.shape = object.shape;
+    this.vel = object.vel;
+
+    this.colliders = object.colliders;
+    this.grounded = false;
+  }
+
+  collisions() {
+    this.horizontalCollisions();
+    this.grounded = this.verticalCollisions();
+  }
+
+  horizontalCollisions() {
+    for (var i = 0; i < this.raycastAmount; i++) {
+      let startX;
+      let endX;
+
+      let spacing = (i * ((this.shape.height - this.skin) / (this.raycastAmount - 1))) + (this.skin / 2);
+
+      if (this.vel.x > 0) {
+        startX = {
+          x: this.shape.center().x + (this.shape.width / 2),
+          y: this.shape.pos.y + spacing
+        };
+        endX = {
+          x: this.shape.center().x + (this.shape.width / 2) + Math.abs(this.object.vel.x),
+          y: this.shape.pos.y + spacing
+        };
+      } else {
+        startX = {
+          x: this.shape.center().x - (this.shape.width / 2),
+          y: this.shape.pos.y + spacing
+        };
+        endX = {
+          x: this.shape.center().x - (this.shape.width / 2) - Math.abs(this.object.vel.x),
+          y: this.shape.pos.y + spacing
+        };
+      }
+
+      let hit = this.raycast(startX, endX, 'horizontal');
+      if (hit) {
+
+        if (this.vel.x > 0) {
+          this.shape.pos.x = (hit.collider.center().x - hit.collider.width / 2) - this.shape.width;
+        } else {
+          this.shape.pos.x = (hit.collider.center().x + hit.collider.width / 2);
+        }
+        this.vel.x = 0;
+      }
+    }
+  }
+
+  verticalCollisions() {
+
+    let anyCollisions = false;
+
+    for (var i = 0; i < this.raycastAmount; i++) {
+      let startY;
+      let endY;
+
+      let spacing = (i * ((this.shape.width) / (this.raycastAmount - 1)));
+
+      if (this.vel.y > 0) {
+        startY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.center().y + (this.shape.height / 2)
+        };
+        endY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.center().y + (this.shape.height / 2) + Math.abs(this.object.vel.y)
+        };
+      } else {
+        startY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.center().y - (this.shape.height / 2)
+        };
+        endY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.center().y - (this.shape.height / 2) - Math.abs(this.object.vel.y)
+        };
+      }
+
+      let hit = this.raycast(startY, endY, 'vertical');
+      if (hit) {
+        if (this.vel.y > 0) {
+          this.shape.pos.y = (hit.collider.center().y - hit.collider.height / 2) - this.shape.height;
+        } else {
+          this.shape.pos.y = (hit.collider.center().y + hit.collider.height / 2);
+        }
+
+        anyCollisions = true;
+        this.vel.y = 0;
+      }
+    }
+
+    return anyCollisions;
+  }
+
+  checkCollision(point, type) {
+    //checks if point is within any of the colliders
+
+    for (var i = 0; i < this.colliders.length; i++) {
+
+      if (point.y > this.colliders[i].center().y - (this.colliders[i].height / 2)
+       && point.y < this.colliders[i].center().y + (this.colliders[i].height / 2)) {
+
+        if (point.x > this.colliders[i].center().x - (this.colliders[i].width / 2)
+         && point.x < this.colliders[i].center().x + (this.colliders[i].width / 2)) {
+          if (type === "horizontal") {
+            debugger
+          }
+          return { collider: this.colliders[i]};
+
+        }
+
+      }
+
+    }
+  }
+
+  raycast(start, end, type) {
+    this.renderRaycast(start, end, 'red');
+    return this.checkCollision(end, type);
+  }
+
+  renderRaycast(start, end, color) {
+    this.ctx.beginPath();
+    this.ctx.moveTo(start.x, start.y);
+    this.ctx.lineTo(end.x, end.y);
+    this.ctx.stroke();
+  }
+}
+
+module.exports = Collision;
 
 
 /***/ })
