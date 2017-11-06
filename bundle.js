@@ -125,7 +125,7 @@ class Game {
   }
 
   moveViewport(ctx, canvasEl, target) {
-    let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, -target.shape.pos.y + canvasEl.height / 2];
+    let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, (-target.shape.pos.y + canvasEl.height / 2) + 150];
     offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
     offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
 
@@ -393,7 +393,8 @@ const Input = function (entity) {
     rightHeld: false,
     jumpPressed: false,
     jumpReleased: false,
-    jumpFresh: true
+    jumpFresh: true,
+    runHeld: false
   };
 
   const update = () => {
@@ -402,14 +403,21 @@ const Input = function (entity) {
   };
 
   window.onkeydown = (e) => {
-    if(e.keyCode === 87 && inputs.jumpFresh) {
+    if (e.keyCode === 87 && inputs.jumpFresh) {
       inputs.jumpPressed = true;
       inputs.jumpFresh = false;
+    }
+    if (e.keyCode === 84) {
+      inputs.downHeld = true;
     }
     if(e.keyCode === 65) {
       inputs.leftHeld = true;
     } else if(e.keyCode === 68) {
       inputs.rightHeld = true;
+    }
+    //j
+    if (e.keyCode === 74) {
+      inputs.runHeld = true;
     }
   };
 
@@ -423,6 +431,13 @@ const Input = function (entity) {
     if (e.keyCode === 87) {
       inputs.jumpReleased = true;
       inputs.jumpFresh = true;
+    }
+    if (e.keyCode === 84) {
+      inputs.downHeld = false;
+    }
+    //j
+    if (e.keyCode === 74) {
+      inputs.runHeld = false;
     }
   };
 
@@ -492,12 +507,14 @@ class MovingObject {
     this.input = {x: 0, y: 0, jump: false};
     this.inputFetcher = new Input();
     this.stats = {
-      speed: 2,
-      groundAcc: 0.055,
+      walkSpeed: 3.65,
+      runSpeed: 5.05,
+      pSpeed: 7.25,
+      groundAcc: 0.0525,
       airAcc: 0.035,
-      minJump: -3.5,
-      jump: -7.25,
-      grav: 0.2
+      minJump: -4.75,
+      jump: -8.45,
+      grav: 0.2625
     };
     this.animation = {
       face: 'right',
@@ -505,6 +522,8 @@ class MovingObject {
     };
     this.colliders = colliders;
     this.collision = new Collision(this, ctx);
+
+    this.status = {grounded: false, running: false, pMeter: 0, pRun: false};
   }
 
   update() {
@@ -526,25 +545,30 @@ class MovingObject {
       this.animation.face = "right";
     }
     if (!this.collision.grounded) {
-      if (this.vel.y > 0) {
-        this.animation.state = "fall";
+      if (this.status.pRun) {
+        this.animation.state = "runJump";
       } else {
-        this.animation.state = "jump";
+        if (this.vel.y > 0) {
+          this.animation.state = "fall";
+        } else {
+          this.animation.state = "jump";
+        }
       }
-    } else {
+    }
+
+    if (this.collision.grounded) {
       if (this.vel.x < 0.5 && this.vel.x > -0.5) {
         this.animation.state = "idle";
-      } else {
-        if (this.vel.x > 0.5) {
-          this.animation.state = "walk";
-        }
-        if (this.vel.x < -0.5) {
-          this.animation.state = "walk";
-        }
-        if (this.vel.x < -0.5 && this.input.x > 0
-          || this.vel.x > 0.5 && this.input.x < 0) {
-          this.animation.state = "skid";
-        }
+      }
+      if (this.vel.x > 0.5) {
+        this.animation.state = (!this.status.pRun) ? "walk" : "run";
+      }
+      if (this.vel.x < -0.5) {
+        this.animation.state = (!this.status.pRun) ? "walk" : "run";
+      }
+      if (this.vel.x < -0.5 && this.input.x > 0
+        || this.vel.x > 0.5 && this.input.x < 0) {
+        this.animation.state = "skid";
       }
     }
   }
@@ -571,11 +595,28 @@ class MovingObject {
       && !this.collision.grounded) {
       this.minJump();
     }
+    this.status.running = this.inputFetcher.inputs.runHeld;
+  }
+
+  speedType() {
+    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running) {
+      this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
+    } else if (this.collision.grounded){
+      this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
+    }
+    if (this.status.pMeter > 0.9) {
+      this.status.pRun = true;
+      return this.stats.pSpeed;
+    } else {
+      this.status.pRun = false;
+      return (this.status.running) ? this.stats.runSpeed : this.stats.walkSpeed;
+    }
   }
 
   calcVel() {
     let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
-    this.vel.x = util.lerp(this.vel.x, (this.input.x * this.stats.speed), acc);
+    let speed = this.speedType();
+    this.vel.x = util.lerp(this.vel.x, (this.input.x * speed), acc);
     this.vel.y += this.stats.grav;
   }
 
@@ -587,7 +628,7 @@ class MovingObject {
   }
 
   movePos() {
-    this.shape.pos.x += this.vel.x * this.stats.speed;
+    this.shape.pos.x += this.vel.x;
     this.shape.pos.y += this.vel.y;
   }
 }
@@ -752,11 +793,12 @@ class Level {
     this.createLevel();
   }
   createLevel() {
-    const ground = new Shape({x: 200, y: 850, width: 400, height: 900, color: 'black'}, this.ctx);
+    const ground = new Shape({x: 200, y: 850, width: 4000, height: 900, color: 'black'}, this.ctx);
     const ground2 = new Shape({x: 700, y: 850, width: 400, height: 900, color: 'black'}, this.ctx);
     const ground3 = new Shape({x: -150, y: 0, width: 400, height: 1600, color: 'black'}, this.ctx);
+    const ground4 = new Shape({x: 650, y: 150, width: 800, height: 32, color: 'black'}, this.ctx);
 
-    this.colliders = [ground, ground2, ground3];
+    this.colliders = [ground, ground2, ground3, ground4];
   }
 }
 
@@ -795,27 +837,32 @@ class Sprite {
     switch (this.object.target.animation.state) {
       case 'walk':
         this.object.range = {start: 0, end: 3};
-        this.object.currentState = 'walk';
+        this.object.ticksPerFrame = 6;
         break;
       case 'idle':
         this.object.range = {start: 0, end: 0};
-        this.object.currentState = 'idle';
         break;
       case 'jump':
         this.object.range = {start: 10, end: 10};
-        this.object.currentState = 'jump';
         break;
       case 'fall':
         this.object.range = {start: 11, end: 11};
-        this.object.currentState = 'fall';
         break;
       case 'skid':
         this.object.range = {start: 6, end: 6};
-        this.object.currentState = 'skid';
+        break;
+      case 'run':
+        this.object.range = {start: 3, end: 6};
+        this.object.ticksPerFrame = 3;
+        break;
+      case 'runJump':
+        this.object.range = {start: 12, end: 12};
         break;
       default:
 
     }
+
+    this.object.currentState = this.object.target.animation.state;
 
     if (this.object.currentState !== oldState) {
       this.stateChange();
