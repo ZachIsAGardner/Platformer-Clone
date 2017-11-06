@@ -109,7 +109,7 @@ const Sprite = __webpack_require__(9);
 
 const Level = __webpack_require__(8);
 
-const redSquare = {x: 170, y: 275, width: 30, height: 50, color: 'red'};
+const redSquare = {x: 170, y: 275, width: 32, height: 56, color: 'rgba(200,170,255,0.8)'};
 
 const util = new Util();
 
@@ -135,6 +135,7 @@ class Game {
   render(ctx) {
     //i have no idea why offset x and offset y have to be multiplied by -1
     ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
+    ctx.scale(2, 2);
   }
 
   start(canvasEl) {
@@ -145,12 +146,11 @@ class Game {
 
     let image = new Image();
     image.src = 'assets/images/mario.png';
-    let mario = new Sprite({ctx: ctx, width: 32, height: 32, image: image, target: player});
+    let mario = new Sprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
 
     const animateCallback = () => {
       //clear canvas then render objects
       this.render(ctx);
-
 
       this.moveViewport(ctx, canvasEl, player);
       player.update();
@@ -392,7 +392,8 @@ const Input = function (entity) {
     leftHeld: false,
     rightHeld: false,
     jumpPressed: false,
-    jumpReleased: false
+    jumpReleased: false,
+    jumpFresh: true
   };
 
   const update = () => {
@@ -401,8 +402,9 @@ const Input = function (entity) {
   };
 
   window.onkeydown = (e) => {
-    if(e.keyCode === 87) {
+    if(e.keyCode === 87 && inputs.jumpFresh) {
       inputs.jumpPressed = true;
+      inputs.jumpFresh = false;
     }
     if(e.keyCode === 65) {
       inputs.leftHeld = true;
@@ -420,6 +422,7 @@ const Input = function (entity) {
     }
     if (e.keyCode === 87) {
       inputs.jumpReleased = true;
+      inputs.jumpFresh = true;
     }
   };
 
@@ -490,8 +493,8 @@ class MovingObject {
     this.inputFetcher = new Input();
     this.stats = {
       speed: 2,
-      groundAcc: 0.105,
-      airAcc: 0.045,
+      groundAcc: 0.055,
+      airAcc: 0.035,
       minJump: -3.5,
       jump: -7.25,
       grav: 0.2
@@ -506,6 +509,7 @@ class MovingObject {
 
   update() {
     this.handleInput();
+    this.handleAnimation();
     this.inputFetcher.update();
 
     this.movePos();
@@ -515,21 +519,48 @@ class MovingObject {
     this.collision.collisions();
   }
 
+  handleAnimation() {
+    if (this.input.x < -0) {
+      this.animation.face = "left";
+    } else if (this.input.x > 0) {
+      this.animation.face = "right";
+    }
+    if (!this.collision.grounded) {
+      if (this.vel.y > 0) {
+        this.animation.state = "fall";
+      } else {
+        this.animation.state = "jump";
+      }
+    } else {
+      if (this.vel.x < 0.5 && this.vel.x > -0.5) {
+        this.animation.state = "idle";
+      } else {
+        if (this.vel.x > 0.5) {
+          this.animation.state = "walk";
+        }
+        if (this.vel.x < -0.5) {
+          this.animation.state = "walk";
+        }
+        if (this.vel.x < -0.5 && this.input.x > 0
+          || this.vel.x > 0.5 && this.input.x < 0) {
+          this.animation.state = "skid";
+        }
+      }
+    }
+  }
+
   handleInput() {
     if (!this.inputFetcher.inputs.leftHeld
       && !this.inputFetcher.inputs.rightHeld) {
       this.input.x = 0;
-      this.animation.state = 'idle';
     }
     if (this.inputFetcher.inputs.leftHeld
       && !this.inputFetcher.inputs.rightHeld) {
       this.input.x = -1;
-      this.animation = {face: 'left', state: 'walk'};
     }
     if (!this.inputFetcher.inputs.leftHeld
       && this.inputFetcher.inputs.rightHeld) {
       this.input.x = 1;
-      this.animation = {face: 'right', state: 'walk'};
     }
     if (this.inputFetcher.inputs.jumpPressed
       && this.collision.grounded) {
@@ -543,7 +574,8 @@ class MovingObject {
   }
 
   calcVel() {
-    this.vel.x = util.lerp(this.vel.x, (this.input.x * this.stats.speed), this.stats.groundAcc);
+    let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
+    this.vel.x = util.lerp(this.vel.x, (this.input.x * this.stats.speed), acc);
     this.vel.y += this.stats.grav;
   }
 
@@ -720,9 +752,10 @@ class Level {
     this.createLevel();
   }
   createLevel() {
-    const ground = new Shape({x: 200, y: 450, width: 200, height: 30, color: 'black'}, this.ctx);
-    const ground2 = new Shape({x: 120, y: 300, width: 30, height: 600, color: 'black'}, this.ctx);
-    const ground3 = new Shape({x: 200, y: 320, width: 200, height: 30, color: 'black'}, this.ctx);
+    const ground = new Shape({x: 200, y: 850, width: 400, height: 900, color: 'black'}, this.ctx);
+    const ground2 = new Shape({x: 700, y: 850, width: 400, height: 900, color: 'black'}, this.ctx);
+    const ground3 = new Shape({x: -150, y: 0, width: 400, height: 1600, color: 'black'}, this.ctx);
+
     this.colliders = [ground, ground2, ground3];
   }
 }
@@ -747,23 +780,50 @@ class Sprite {
       ticksPerFrame: 6,
       numberOfFrames: 14,
       range: {start: 0, end: 3},
-      target
+      target,
+      currentState: 'idle'
     };
   }
 
   parseState() {
+    let oldState = this.object.currentState;
     if (this.object.target.animation.face === 'right') {
       this.object.column = 0;
     } else {
       this.object.column = 1;
     }
-    if (this.object.target.animation.state === 'walk') {
-      this.object.range = {start: 0, end: 3};
-    }
-    if (this.object.target.animation.state === "idle") {
-      this.object.range = {start: 0, end: 0};
+    switch (this.object.target.animation.state) {
+      case 'walk':
+        this.object.range = {start: 0, end: 3};
+        this.object.currentState = 'walk';
+        break;
+      case 'idle':
+        this.object.range = {start: 0, end: 0};
+        this.object.currentState = 'idle';
+        break;
+      case 'jump':
+        this.object.range = {start: 10, end: 10};
+        this.object.currentState = 'jump';
+        break;
+      case 'fall':
+        this.object.range = {start: 11, end: 11};
+        this.object.currentState = 'fall';
+        break;
+      case 'skid':
+        this.object.range = {start: 6, end: 6};
+        this.object.currentState = 'skid';
+        break;
+      default:
+
     }
 
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  stateChange() {
+    this.object.row = this.object.range.start;
   }
 
   update() {
@@ -781,14 +841,16 @@ class Sprite {
   }
 
   render() {
+    //assuming 64 x 64 sized sprite
+
     this.object.ctx.drawImage(
       this.object.image,
-      this.object.row * 32,
-      this.object.column * 32,
+      this.object.row * 64,
+      this.object.column * 64,
       this.object.width,
       this.object.height,
-      this.object.target.shape.pos.x,
-      this.object.target.shape.pos.y,
+      this.object.target.shape.pos.x - 16,
+      this.object.target.shape.pos.y - 8,
       this.object.width,
       this.object.height
     );
