@@ -105,12 +105,11 @@ const Square = __webpack_require__(3);
 const Shape = __webpack_require__(5);
 const MovingObject = __webpack_require__(6);
 
-const Input = __webpack_require__(4);
+const Sprite = __webpack_require__(9);
 
+const Level = __webpack_require__(8);
 
-// const colliders = [];
-
-const redSquare = {x: 170, y: 375, width: 30, height: 50, color: 'red'};
+const redSquare = {x: 170, y: 275, width: 30, height: 50, color: 'red'};
 
 const util = new Util();
 
@@ -125,12 +124,12 @@ class Game {
     this.yDim = yDim;
   }
 
-  moveViewport(ctx, canvasEl) {
-    // let cameraCenter = [-square.centerX + canvasEl.width / 2, -square.centerY + canvasEl.height / 2];
-    // offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
-    // offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
-    //
-    // ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
+  moveViewport(ctx, canvasEl, target) {
+    let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, -target.shape.pos.y + canvasEl.height / 2];
+    offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
+    offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
+
+    ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
   }
 
   render(ctx) {
@@ -141,25 +140,27 @@ class Game {
   start(canvasEl) {
     const ctx = canvasEl.getContext("2d");
 
-    const ground = new Shape({x: 200, y: 450, width: 200, height: 30, color: 'black'}, ctx);
-    const ground2 = new Shape({x: 120, y: 300, width: 30, height: 600, color: 'black'}, ctx);
-    const ground3 = new Shape({x: 200, y: 320, width: 200, height: 30, color: 'black'}, ctx);
+    const colliders = new Level(ctx).colliders;
+    const player = new MovingObject(redSquare, colliders, ctx);
 
-    const colliders = [ground, ground2, ground3];
-
-    const mover = new MovingObject(redSquare, colliders, ctx);
+    let image = new Image();
+    image.src = 'assets/images/mario.png';
+    let mario = new Sprite({ctx: ctx, width: 32, height: 32, image: image, target: player});
 
     const animateCallback = () => {
       //clear canvas then render objects
       this.render(ctx);
 
-      this.moveViewport(ctx, canvasEl);
-      // square.update(ctx);
-      mover.update();
+
+      this.moveViewport(ctx, canvasEl, player);
+      player.update();
 
       colliders.forEach((collider) => {
         collider.render(ctx);
       });
+
+      mario.update();
+
 
       requestAnimationFrame(animateCallback);
     };
@@ -460,7 +461,7 @@ class Shape {
     };
   }
 
-  center() {
+  calcCenter() {
     return {
       x: this.pos.x + (this.width / 2),
       y: this.pos.y + (this.height / 2)
@@ -495,7 +496,10 @@ class MovingObject {
       jump: -7.25,
       grav: 0.2
     };
-
+    this.animation = {
+      face: 'right',
+      state: 'idle'
+    };
     this.colliders = colliders;
     this.collision = new Collision(this, ctx);
   }
@@ -515,14 +519,17 @@ class MovingObject {
     if (!this.inputFetcher.inputs.leftHeld
       && !this.inputFetcher.inputs.rightHeld) {
       this.input.x = 0;
+      this.animation.state = 'idle';
     }
     if (this.inputFetcher.inputs.leftHeld
       && !this.inputFetcher.inputs.rightHeld) {
       this.input.x = -1;
+      this.animation = {face: 'left', state: 'walk'};
     }
     if (!this.inputFetcher.inputs.leftHeld
       && this.inputFetcher.inputs.rightHeld) {
       this.input.x = 1;
+      this.animation = {face: 'right', state: 'walk'};
     }
     if (this.inputFetcher.inputs.jumpPressed
       && this.collision.grounded) {
@@ -589,20 +596,20 @@ class Collision {
 
       if (this.vel.x > 0) {
         startX = {
-          x: this.shape.center().x + (this.shape.width / 2),
+          x: this.shape.calcCenter().x + (this.shape.width / 2),
           y: this.shape.pos.y + spacing
         };
         endX = {
-          x: this.shape.center().x + (this.shape.width / 2) + Math.abs(this.object.vel.x),
+          x: this.shape.calcCenter().x + (this.shape.width / 2) + Math.abs(this.object.vel.x),
           y: this.shape.pos.y + spacing
         };
       } else {
         startX = {
-          x: this.shape.center().x - (this.shape.width / 2),
+          x: this.shape.calcCenter().x - (this.shape.width / 2),
           y: this.shape.pos.y + spacing
         };
         endX = {
-          x: this.shape.center().x - (this.shape.width / 2) - Math.abs(this.object.vel.x),
+          x: this.shape.calcCenter().x - (this.shape.width / 2) - Math.abs(this.object.vel.x),
           y: this.shape.pos.y + spacing
         };
       }
@@ -611,9 +618,9 @@ class Collision {
       if (hit) {
 
         if (this.vel.x > 0) {
-          this.shape.pos.x = (hit.collider.center().x - hit.collider.width / 2) - this.shape.width;
+          this.shape.pos.x = (hit.collider.calcCenter().x - hit.collider.width / 2) - this.shape.width;
         } else {
-          this.shape.pos.x = (hit.collider.center().x + hit.collider.width / 2);
+          this.shape.pos.x = (hit.collider.calcCenter().x + hit.collider.width / 2);
         }
         this.vel.x = 0;
       }
@@ -621,7 +628,6 @@ class Collision {
   }
 
   verticalCollisions() {
-
     let anyCollisions = false;
 
     for (var i = 0; i < this.raycastAmount; i++) {
@@ -633,29 +639,29 @@ class Collision {
       if (this.vel.y > 0) {
         startY = {
           x: this.shape.pos.x + spacing,
-          y: this.shape.center().y + (this.shape.height / 2)
+          y: this.shape.calcCenter().y + (this.shape.height / 2)
         };
         endY = {
           x: this.shape.pos.x + spacing,
-          y: this.shape.center().y + (this.shape.height / 2) + Math.abs(this.object.vel.y)
+          y: this.shape.calcCenter().y + (this.shape.height / 2) + Math.abs(this.object.vel.y)
         };
       } else {
         startY = {
           x: this.shape.pos.x + spacing,
-          y: this.shape.center().y - (this.shape.height / 2)
+          y: this.shape.calcCenter().y - (this.shape.height / 2)
         };
         endY = {
           x: this.shape.pos.x + spacing,
-          y: this.shape.center().y - (this.shape.height / 2) - Math.abs(this.object.vel.y)
+          y: this.shape.calcCenter().y - (this.shape.height / 2) - Math.abs(this.object.vel.y)
         };
       }
 
       let hit = this.raycast(startY, endY, 'vertical');
       if (hit) {
         if (this.vel.y > 0) {
-          this.shape.pos.y = (hit.collider.center().y - hit.collider.height / 2) - this.shape.height;
+          this.shape.pos.y = (hit.collider.calcCenter().y - hit.collider.height / 2) - this.shape.height;
         } else {
-          this.shape.pos.y = (hit.collider.center().y + hit.collider.height / 2);
+          this.shape.pos.y = (hit.collider.calcCenter().y + hit.collider.height / 2);
         }
 
         anyCollisions = true;
@@ -668,17 +674,14 @@ class Collision {
 
   checkCollision(point, type) {
     //checks if point is within any of the colliders
-
     for (var i = 0; i < this.colliders.length; i++) {
 
-      if (point.y > this.colliders[i].center().y - (this.colliders[i].height / 2)
-       && point.y < this.colliders[i].center().y + (this.colliders[i].height / 2)) {
+      if (point.y > this.colliders[i].calcCenter().y - (this.colliders[i].height / 2)
+       && point.y < this.colliders[i].calcCenter().y + (this.colliders[i].height / 2)) {
 
-        if (point.x > this.colliders[i].center().x - (this.colliders[i].width / 2)
-         && point.x < this.colliders[i].center().x + (this.colliders[i].width / 2)) {
-          if (type === "horizontal") {
-            debugger
-          }
+        if (point.x > this.colliders[i].calcCenter().x - (this.colliders[i].width / 2)
+         && point.x < this.colliders[i].calcCenter().x + (this.colliders[i].width / 2)) {
+
           return { collider: this.colliders[i]};
 
         }
@@ -702,6 +705,99 @@ class Collision {
 }
 
 module.exports = Collision;
+
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(5);
+
+class Level {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.colliders = [];
+    this.createLevel();
+  }
+  createLevel() {
+    const ground = new Shape({x: 200, y: 450, width: 200, height: 30, color: 'black'}, this.ctx);
+    const ground2 = new Shape({x: 120, y: 300, width: 30, height: 600, color: 'black'}, this.ctx);
+    const ground3 = new Shape({x: 200, y: 320, width: 200, height: 30, color: 'black'}, this.ctx);
+    this.colliders = [ground, ground2, ground3];
+  }
+}
+
+module.exports = Level;
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports) {
+
+class Sprite {
+  constructor({ctx, width, height, image, ticksPerFrame, target, state, face}) {
+    this.object = {
+      ctx,
+      width,
+      height,
+      image,
+      row: 0,
+      column: 0,
+      tickCount: 0,
+      ticksPerFrame: 6,
+      numberOfFrames: 14,
+      range: {start: 0, end: 3},
+      target
+    };
+  }
+
+  parseState() {
+    if (this.object.target.animation.face === 'right') {
+      this.object.column = 0;
+    } else {
+      this.object.column = 1;
+    }
+    if (this.object.target.animation.state === 'walk') {
+      this.object.range = {start: 0, end: 3};
+    }
+    if (this.object.target.animation.state === "idle") {
+      this.object.range = {start: 0, end: 0};
+    }
+
+  }
+
+  update() {
+    this.parseState();
+    this.object.tickCount += 1;
+
+    if (this.object.tickCount > this.object.ticksPerFrame) {
+      this.object.row += 1;
+      this.object.tickCount = 0;
+      if (this.object.row > this.object.range.end - 1) {
+        this.object.row = this.object.range.start;
+      }
+    }
+    this.render();
+  }
+
+  render() {
+    this.object.ctx.drawImage(
+      this.object.image,
+      this.object.row * 32,
+      this.object.column * 32,
+      this.object.width,
+      this.object.height,
+      this.object.target.shape.pos.x,
+      this.object.target.shape.pos.y,
+      this.object.width,
+      this.object.height
+    );
+
+  }
+
+}
+
+module.exports = Sprite;
 
 
 /***/ })
