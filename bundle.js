@@ -394,7 +394,8 @@ const Input = function (entity) {
     jumpPressed: false,
     jumpReleased: false,
     jumpFresh: true,
-    runHeld: false
+    runHeld: false,
+    downHeld: false
   };
 
   const update = () => {
@@ -403,11 +404,11 @@ const Input = function (entity) {
   };
 
   window.onkeydown = (e) => {
-    if (e.keyCode === 87 && inputs.jumpFresh) {
+    if (e.keyCode === 74 && inputs.jumpFresh) {
       inputs.jumpPressed = true;
       inputs.jumpFresh = false;
     }
-    if (e.keyCode === 84) {
+    if (e.keyCode === 83) {
       inputs.downHeld = true;
     }
     if(e.keyCode === 65) {
@@ -416,7 +417,7 @@ const Input = function (entity) {
       inputs.rightHeld = true;
     }
     //j
-    if (e.keyCode === 74) {
+    if (e.keyCode === 75) {
       inputs.runHeld = true;
     }
   };
@@ -428,15 +429,15 @@ const Input = function (entity) {
     if (e.keyCode === 68) {
       inputs.rightHeld = false;
     }
-    if (e.keyCode === 87) {
+    if (e.keyCode === 74) {
       inputs.jumpReleased = true;
       inputs.jumpFresh = true;
     }
-    if (e.keyCode === 84) {
+    if (e.keyCode === 83) {
       inputs.downHeld = false;
     }
     //j
-    if (e.keyCode === 74) {
+    if (e.keyCode === 75) {
       inputs.runHeld = false;
     }
   };
@@ -539,36 +540,41 @@ class MovingObject {
   }
 
   handleAnimation() {
-    if (this.input.x < -0) {
-      this.animation.face = "left";
-    } else if (this.input.x > 0) {
-      this.animation.face = "right";
-    }
-    if (!this.collision.grounded) {
-      if (this.status.pRun) {
-        this.animation.state = "runJump";
-      } else {
-        if (this.vel.y > 0) {
-          this.animation.state = "fall";
+
+    if (this.status.ducking) {
+      this.animation.state = 'duck';
+    } else {
+      if (this.input.x < -0) {
+        this.animation.face = "left";
+      } else if (this.input.x > 0) {
+        this.animation.face = "right";
+      }
+      if (!this.collision.grounded) {
+        if (this.status.pRun) {
+          this.animation.state = "runJump";
         } else {
-          this.animation.state = "jump";
+          if (this.vel.y > 0) {
+            this.animation.state = "fall";
+          } else {
+            this.animation.state = "jump";
+          }
         }
       }
-    }
 
-    if (this.collision.grounded) {
-      if (this.vel.x < 0.5 && this.vel.x > -0.5) {
-        this.animation.state = "idle";
-      }
-      if (this.vel.x > 0.5) {
-        this.animation.state = (!this.status.pRun) ? "walk" : "run";
-      }
-      if (this.vel.x < -0.5) {
-        this.animation.state = (!this.status.pRun) ? "walk" : "run";
-      }
-      if (this.vel.x < -0.5 && this.input.x > 0
-        || this.vel.x > 0.5 && this.input.x < 0) {
-        this.animation.state = "skid";
+      if (this.collision.grounded) {
+        if (this.vel.x < 0.5 && this.vel.x > -0.5) {
+          this.animation.state = "idle";
+        }
+        if (this.vel.x > 0.5) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.5) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.5 && this.input.x > 0
+          || this.vel.x > 0.5 && this.input.x < 0) {
+            this.animation.state = "skid";
+        }
       }
     }
   }
@@ -596,10 +602,17 @@ class MovingObject {
       this.minJump();
     }
     this.status.running = this.inputFetcher.inputs.runHeld;
+    if (this.collision.grounded) {
+      this.status.ducking = this.inputFetcher.inputs.downHeld;
+    }
   }
 
   speedType() {
-    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running) {
+    if (this.collision.grounded && this.status.ducking) {
+      this.status.pMeter = 0;
+      return 0;
+    }
+    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running && this.collision.grounded) {
       this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
     } else if (this.collision.grounded){
       this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
@@ -853,10 +866,13 @@ class Sprite {
         break;
       case 'run':
         this.object.range = {start: 3, end: 6};
-        this.object.ticksPerFrame = 3;
+        this.object.ticksPerFrame = 2;
         break;
       case 'runJump':
         this.object.range = {start: 12, end: 12};
+        break;
+      case 'duck':
+        this.object.range = {start: 9, end: 9};
         break;
       default:
 
