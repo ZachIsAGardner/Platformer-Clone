@@ -30,7 +30,7 @@ Wireframes
 ---
 The clone will mostly be just a viewport. There will be controls and links accompanying the viewport as well.
 
-![game viewport]()
+![game viewport](https://github.com/ZachIsAGardner/game-project/blob/master/docs/Screen%20Shot%202017-11-07%20at%208.23.56%20PM.png)
 
 Architecture
 ---
