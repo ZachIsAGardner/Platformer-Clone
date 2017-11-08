@@ -118,6 +118,8 @@ Util.prototype.lerp = function(from, to, time) {
   return from + time * (to - from);
 };
 
+
+
 module.exports = Util;
 
 
@@ -144,10 +146,11 @@ new Game(canvasEl.width, canvasEl.height).start(canvasEl);
 const Util = __webpack_require__(1);
 const Shape = __webpack_require__(0);
 const MovingObject = __webpack_require__(4);
-const Sprite = __webpack_require__(7);
+const AnimatedSprite = __webpack_require__(9);
+const Sprite = __webpack_require__(10);
 const Level = __webpack_require__(8);
 
-const playerSquare = {x: 170, y: 275, width: 32, height: 56, color: 'rgba(200,170,255,0.8)'};
+const playerSquare = {x: 0, y: -100, width: 32, height: 56, color: 'rgba(200,170,255,0.8)'};
 const redSquare = {x: 220, y: 275, width: 32, height: 32, color: 'red'};
 
 const util = new Util();
@@ -171,6 +174,19 @@ class Game {
     ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
   }
 
+  createBackground(player, ctx) {
+    let background = new Image();
+    background.src = 'assets/images/background.png';
+
+    let parallax = player.shape.pos.x / 30;
+
+    for (var i = 0; i < 2; i++) {
+      ctx.drawImage(
+        background, 0, 0, 1024, 896, -offsetX + (1024 * i) - parallax, -offsetY - 174, 1024, 896
+      );
+    }
+  }
+
   render(ctx) {
     //i have no idea why offset x and offset y have to be multiplied by -1
     ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
@@ -180,27 +196,34 @@ class Game {
   start(canvasEl) {
     const ctx = canvasEl.getContext("2d");
 
-    const colliders = new Level(ctx).colliders;
+    const level = new Level(ctx);
+    const colliders = level.colliders;
+    const tiles = level.tiles;
+
     const player = new MovingObject(playerSquare, colliders, ctx);
 
 
     let image = new Image();
     image.src = 'assets/images/mario.png';
-    let mario = new Sprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
+    let mario = new AnimatedSprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
 
     const animateCallback = () => {
       //clear canvas then render objects
       this.render(ctx);
 
       this.moveViewport(ctx, canvasEl, player);
-      player.update();
+      this.createBackground(player, ctx);
 
+      player.update();
+      mario.update();
 
       colliders.forEach((collider) => {
         collider.render(ctx);
       });
 
-      mario.update();
+      tiles.forEach((tile) => {
+        tile.render(ctx);
+      });
 
 
       requestAnimationFrame(animateCallback);
@@ -581,10 +604,101 @@ module.exports = Collision;
 
 
 /***/ }),
-/* 7 */
+/* 7 */,
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const Sprite = __webpack_require__(10);
+
+class Level {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.colliders = [];
+    this.tiles = [];
+    this.createLevel();
+  }
+
+  createLevel() {
+    let groundSheet = new Image();
+    groundSheet.src = 'assets/images/ground_tiles.png';
+
+    const tl = { row: 0, col: 0, collider: true};
+    const to = { row: 1, col: 0, collider: true};
+    const tr = { row: 2, col: 0, collider: true};
+    const ml = { row: 0, col: 1, collider: true};
+    const mi = { row: 1, col: 1, collider: false};
+    const mr = { row: 2, col: 1, collider: true};
+    const bl = { row: 0, col: 2, collider: true};
+    const bo = { row: 1, col: 2, collider: true};
+    const br = { row: 2, col: 2, collider: true};
+    const __ = null;
+
+    const ch = {
+      chunk: [
+        [tl,to,tr],
+        [ml,mi,mr],
+        [bl,bo,br],
+      ]
+    };
+
+    const map = [
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,ch],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,tr,__,__,ch],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+    ];
+
+    this.ParseMap(map, groundSheet);
+  }
+
+  ParseMap(map, sheet, offset={x:0, y:0}) {
+    map.forEach((row, j) => {
+      row.forEach((key, i) => {
+        if (key === null) {
+          return;
+        }
+        if (key.chunk) {
+          this.ParseMap(key.chunk, sheet, {x:i, y:j});
+          return;
+        }
+        let newTile = new Sprite({
+          ctx: this.ctx,
+          image: sheet,
+          pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
+          row: key.row,
+          col: key.col
+        });
+        this.tiles.push(newTile);
+
+        if (key.collider) {
+          let newGround = new Shape({
+            x: (i + offset.x) * 32,
+            y: (j + offset.y) * 32,
+            width: 32,
+            height: 32,
+            color: 'rgba(0,0,0,0)'},
+            this.ctx
+          );
+          this.colliders.push(newGround);
+        }
+      });
+    });
+  }
+}
+
+module.exports = Level;
+
+
+/***/ }),
+/* 9 */
 /***/ (function(module, exports) {
 
-class Sprite {
+class AnimatedSprite {
   constructor({ctx, width, height, image, ticksPerFrame, target, state, face}) {
     this.object = {
       ctx,
@@ -592,7 +706,7 @@ class Sprite {
       height,
       image,
       row: 0,
-      column: 0,
+      col: 0,
       tickCount: 0,
       ticksPerFrame: 6,
       numberOfFrames: 14,
@@ -605,9 +719,9 @@ class Sprite {
   parseState() {
     let oldState = this.object.currentState;
     if (this.object.target.animation.face === 'right') {
-      this.object.column = 0;
+      this.object.col = 0;
     } else {
-      this.object.column = 1;
+      this.object.col = 1;
     }
     switch (this.object.target.animation.state) {
       case 'walk':
@@ -671,7 +785,7 @@ class Sprite {
     this.object.ctx.drawImage(
       this.object.image,
       this.object.row * 64,
-      this.object.column * 64,
+      this.object.col * 64,
       this.object.width,
       this.object.height,
       this.object.target.shape.pos.x - 16,
@@ -685,33 +799,45 @@ class Sprite {
 
 }
 
-module.exports = Sprite;
+module.exports = AnimatedSprite;
 
 
 /***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
+/* 10 */
+/***/ (function(module, exports) {
 
-const Shape = __webpack_require__(0);
-
-class Level {
-  constructor(ctx) {
-    this.ctx = ctx;
-    this.colliders = [];
-    this.createLevel();
+class Sprite {
+  constructor({ctx, width, height, image, pos, row, col}) {
+    this.object = {
+      ctx,
+      width: width || 32,
+      height: height || 32,
+      image,
+      row: row || 0,
+      col: col || 0,
+      pos: pos || {x: 0, y: 0}
+    };
   }
-  createLevel() {
-    const ground = new Shape({x: 200, y: 850, width: 4000, height: 900, color: 'black'}, this.ctx);
-    const ground2 = new Shape({x: 700, y: 850, width: 400, height: 900, color: 'black'}, this.ctx);
-    const ground3 = new Shape({x: -150, y: 0, width: 400, height: 1600, color: 'black'}, this.ctx);
-    const ground4 = new Shape({x: 650, y: 150, width: 800, height: 32, color: 'black'}, this.ctx);
-    const ground5 = new Shape({x: 150, y: 550, width: 8000, height: 32, color: 'black'}, this.ctx);
 
-    this.colliders = [ground, ground2, ground3, ground4, ground5];
+  render() {
+    //assuming 32 x 32 sized sprite
+
+    this.object.ctx.drawImage(
+      this.object.image,
+      this.object.row * 32,
+      this.object.col * 32,
+      this.object.width,
+      this.object.height,
+      this.object.pos.x - 16,
+      this.object.pos.y - 16,
+      this.object.width,
+      this.object.height
+    );
+
   }
 }
 
-module.exports = Level;
+module.exports = Sprite;
 
 
 /***/ })
