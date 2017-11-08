@@ -151,6 +151,7 @@ const Util = __webpack_require__(1);
 const Shape = __webpack_require__(0);
 const MovingObject = __webpack_require__(4);
 const Player = __webpack_require__(13);
+const Galoomba = __webpack_require__(14);
 const AnimatedSprite = __webpack_require__(9);
 const Sprite = __webpack_require__(10);
 const Level = __webpack_require__(8);
@@ -267,7 +268,7 @@ class Game {
     image.src = 'assets/images/mario.png';
     let mario = new AnimatedSprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
 
-    const enemy = new MovingObject(redSquare, colliders, ctx);
+    const enemy = new Galoomba(redSquare, colliders, ctx);
     // let galoombaImage = new Image();
     // galoombaImage.src = 'assets/images/galoomba.png';
     // let galoomba = new AnimatedSprite({ctx: ctx, image: image, target: enemy});
@@ -318,7 +319,7 @@ module.exports = Game;
 const Util = __webpack_require__(1);
 const util = new Util();
 const Shape = __webpack_require__(0);
-const Input = __webpack_require__(5);
+
 const Collision = __webpack_require__(6);
 const SFX = __webpack_require__(11);
 const sfx = new SFX();
@@ -328,11 +329,7 @@ class MovingObject {
     this.shape = new Shape(shapeParameters, ctx);
     this.vel = {x: 0, y: 0};
     this.input = {x: 0, y: 0, jump: false};
-    // if (inputType === 'user') {
-    //   this.inputFetcher = new Input();
-    // } else if (inputType === 'ai') {
-    //   this.inputFetcher = new
-    // }
+
     this.stats = {
       walkSpeed: 3.65,
       runSpeed: 5.05,
@@ -354,85 +351,11 @@ class MovingObject {
   }
 
   update() {
-    if (this.inputFetcher) {
-      this.handleInput();
-      this.inputFetcher.update();
-    }
-    this.handleAnimation();
-
     this.movePos();
     this.calcVel();
     this.shape.render();
 
     this.collision.collisions();
-  }
-
-  handleAnimation() {
-    if (this.status.ducking) {
-      this.animation.state = 'duck';
-    } else {
-      if (this.input.x < -0) {
-        this.animation.face = "left";
-      } else if (this.input.x > 0) {
-        this.animation.face = "right";
-      }
-      if (!this.collision.grounded) {
-        if (this.status.pRun) {
-          this.animation.state = "runJump";
-        } else {
-          if (this.vel.y > 0) {
-            this.animation.state = "fall";
-          } else {
-            this.animation.state = "jump";
-          }
-        }
-      }
-
-      if (this.collision.grounded) {
-        if (this.vel.x < 0.5 && this.vel.x > -0.5) {
-          this.animation.state = "idle";
-        }
-        if (this.vel.x > 0.5) {
-          this.animation.state = (!this.status.pRun) ? "walk" : "run";
-        }
-        if (this.vel.x < -0.5) {
-          this.animation.state = (!this.status.pRun) ? "walk" : "run";
-        }
-        if (this.vel.x < -0.5 && this.input.x > 0
-          || this.vel.x > 0.5 && this.input.x < 0) {
-            this.animation.state = "skid";
-        }
-      }
-    }
-  }
-
-  handleInput() {
-    if (!this.inputFetcher.inputs.leftHeld
-      && !this.inputFetcher.inputs.rightHeld) {
-      this.input.x = 0;
-    }
-    if (this.inputFetcher.inputs.leftHeld
-      && !this.inputFetcher.inputs.rightHeld) {
-      this.input.x = -1;
-    }
-    if (!this.inputFetcher.inputs.leftHeld
-      && this.inputFetcher.inputs.rightHeld) {
-      this.input.x = 1;
-    }
-    if (this.inputFetcher.inputs.jumpPressed
-      && this.collision.grounded) {
-      this.jump();
-      sfx.sounds.jump.play();
-    }
-    if (this.inputFetcher.inputs.jumpReleased
-      && this.vel.y < this.stats.minJump
-      && !this.collision.grounded) {
-      this.minJump();
-    }
-    this.status.running = this.inputFetcher.inputs.runHeld;
-    if (this.collision.grounded) {
-      this.status.ducking = this.inputFetcher.inputs.downHeld;
-    }
   }
 
   speedType() {
@@ -1002,14 +925,108 @@ module.exports = SFX;
 /***/ (function(module, exports, __webpack_require__) {
 
 const MovingObject = __webpack_require__(4);
+const Input = __webpack_require__(5);
 
 class Player extends MovingObject {
   constructor(shapeParameters, colliders, ctx) {
     super(shapeParameters, colliders, ctx);
+    this.inputFetcher = new Input();
+  }
+
+  handleAnimation() {
+    if (this.status.ducking) {
+      this.animation.state = 'duck';
+    } else {
+      if (this.input.x < -0) {
+        this.animation.face = "left";
+      } else if (this.input.x > 0) {
+        this.animation.face = "right";
+      }
+      if (!this.collision.grounded) {
+        if (this.status.pRun) {
+          this.animation.state = "runJump";
+        } else {
+          if (this.vel.y > 0) {
+            this.animation.state = "fall";
+          } else {
+            this.animation.state = "jump";
+          }
+        }
+      }
+
+      if (this.collision.grounded) {
+        if (this.vel.x < 0.5 && this.vel.x > -0.5) {
+          this.animation.state = "idle";
+        }
+        if (this.vel.x > 0.5) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.5) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.5 && this.input.x > 0
+          || this.vel.x > 0.5 && this.input.x < 0) {
+            this.animation.state = "skid";
+        }
+      }
+    }
+  }
+
+  handleInput() {
+    if (!this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 0;
+    }
+    if (this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = -1;
+    }
+    if (!this.inputFetcher.inputs.leftHeld
+      && this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 1;
+    }
+    if (this.inputFetcher.inputs.jumpPressed
+      && this.collision.grounded) {
+      this.jump();
+      // sfx.sounds.jump.play();
+    }
+    if (this.inputFetcher.inputs.jumpReleased
+      && this.vel.y < this.stats.minJump
+      && !this.collision.grounded) {
+      this.minJump();
+    }
+    this.status.running = this.inputFetcher.inputs.runHeld;
+    if (this.collision.grounded) {
+      this.status.ducking = this.inputFetcher.inputs.downHeld;
+    }
+  }
+
+  update(){
+    this.handleInput();
+    this.inputFetcher.update();
+    this.handleAnimation();
+    super.update();
   }
 }
 
-module.exports = MovingObject;
+module.exports = Player;
+
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const MovingObject = __webpack_require__(4);
+
+class Galoomba extends MovingObject {
+  constructor(shapeParameters, colliders, ctx) {
+    super(shapeParameters, colliders, ctx);
+    this.input.x = -1;
+    this.stats.walkSpeed = 0.5;
+  }
+}
+
+module.exports = Galoomba;
 
 
 /***/ })
