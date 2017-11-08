@@ -170,6 +170,7 @@ class Game {
   constructor(xDim, yDim) {
     this.xDim = xDim;
     this.yDim = yDim;
+    this.dev = true;
   }
 
   checkBoundaries() {
@@ -223,21 +224,52 @@ class Game {
     ctx.scale(2, 2);
   }
 
+  devMethods(player) {
+    if (player.shape.pos.y > border.y.max) {
+      player.vel.x, player.vel.y = 0;
+      player.shape.pos = {x: 0, y: -200};
+    }
+  }
+
+  startAudio() {
+    var audioIntro = new Audio('assets/audio/music/overworld_intro.wav');
+    var audioMain = new Audio('assets/audio/music/overworld_main.wav');
+    audioIntro.play();
+    const songs = [audioIntro, audioMain];
+    if (this.dev) {
+      songs.forEach((song) => {
+        song.volume = 0;
+      });
+    }
+    return songs;
+  }
+
+  handleAudio(audioIntro, audioMain) {
+    if (audioIntro.currentTime >= audioIntro.duration  -0.075 ||
+      audioMain.currentTime >= audioMain.duration - 0.075) {
+        audioIntro.currentTime = 0;
+        audioIntro.pause();
+        audioMain.currentTime = 0;
+        audioMain.play();
+    }
+  }
+
   start(canvasEl) {
     const ctx = canvasEl.getContext("2d");
 
     const level = new Level(ctx);
     const colliders = level.colliders;
     const tiles = level.tiles;
-
+    
     const player = new MovingObject(playerSquare, colliders, ctx);
-
-
     let image = new Image();
     image.src = 'assets/images/mario.png';
     let mario = new AnimatedSprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
 
+    const songs = this.startAudio();
+
     const animateCallback = () => {
+      this.handleAudio(songs[0], songs[1]);
       //clear canvas then render objects
       this.render(ctx);
 
@@ -255,6 +287,9 @@ class Game {
         tile.render(ctx);
       });
 
+      if (this.dev) {
+        this.devMethods(player);
+      }
 
       requestAnimationFrame(animateCallback);
     };
@@ -275,6 +310,8 @@ const util = new Util();
 const Shape = __webpack_require__(0);
 const Input = __webpack_require__(5);
 const Collision = __webpack_require__(6);
+const SFX = __webpack_require__(11);
+const sfx = new SFX();
 
 class MovingObject {
   constructor(shapeParameters, colliders, ctx) {
@@ -369,6 +406,7 @@ class MovingObject {
     if (this.inputFetcher.inputs.jumpPressed
       && this.collision.grounded) {
       this.jump();
+      sfx.sounds.jump.play();
     }
     if (this.inputFetcher.inputs.jumpReleased
       && this.vel.y < this.stats.minJump
@@ -869,6 +907,22 @@ class Sprite {
 }
 
 module.exports = Sprite;
+
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports) {
+
+class SFX {
+  constructor() {
+    const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
+    this.sounds = {
+      jump
+    };
+  }
+}
+
+module.exports = SFX;
 
 
 /***/ })
