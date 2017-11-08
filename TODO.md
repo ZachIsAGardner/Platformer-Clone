@@ -6,24 +6,15 @@ TO RUN:
 ---
 
 GAME:
--Art?
--Camera movement?
+-General:
+  -Clean up util
+  -Framerate independent?
+  -colored raycasts
   -Derender stuff offscreen
 
--Framerate independent?
+-Art
 
--Clean up everything because it's just terrible
-  -seperate movement stuff from square
-  -split up square in general
-  -convert to ES6
-
-COLLISION:
--colored raycasts
-
-
-INPUT:
--Refactor the global 'that' into something not stupid
--Jump repeats
+---
 
 REFERENCES:
 https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D

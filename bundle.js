@@ -60,396 +60,11 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 1);
+/******/ 	return __webpack_require__(__webpack_require__.s = 2);
 /******/ })
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ (function(module, __webpack_exports__) {
-
-"use strict";
-const Util = function() {
-  //constructor
-};
-
-Util.prototype.lerp = function(from, to, time) {
-  return from + time * (to - from);
-};
-
-module.exports = Util;
-
-
-/***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Game = __webpack_require__(2);
-
-const canvasEl = document.getElementsByTagName("canvas")[0];
-
-// canvasEl.width = window.innerWidth;
-// canvasEl.height = window.innerHeight;
-canvasEl.width = 1280;
-canvasEl.height = 720;
-
-new Game(canvasEl.width, canvasEl.height).start(canvasEl);
-
-
-/***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Util = __webpack_require__(0);
-
-const Square = __webpack_require__(3);
-const Shape = __webpack_require__(5);
-const MovingObject = __webpack_require__(6);
-
-const Sprite = __webpack_require__(9);
-
-const Level = __webpack_require__(8);
-
-const redSquare = {x: 170, y: 275, width: 32, height: 56, color: 'rgba(200,170,255,0.8)'};
-
-const util = new Util();
-
-//---
-
-var offsetX = 0;
-var offsetY = 0;
-
-class Game {
-  constructor(xDim, yDim) {
-    this.xDim = xDim;
-    this.yDim = yDim;
-  }
-
-  moveViewport(ctx, canvasEl, target) {
-    let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, (-target.shape.pos.y + canvasEl.height / 2) + 150];
-    offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
-    offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
-
-    ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
-  }
-
-  render(ctx) {
-    //i have no idea why offset x and offset y have to be multiplied by -1
-    ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
-    ctx.scale(2, 2);
-  }
-
-  start(canvasEl) {
-    const ctx = canvasEl.getContext("2d");
-
-    const colliders = new Level(ctx).colliders;
-    const player = new MovingObject(redSquare, colliders, ctx);
-
-    let image = new Image();
-    image.src = 'assets/images/mario.png';
-    let mario = new Sprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
-
-    const animateCallback = () => {
-      //clear canvas then render objects
-      this.render(ctx);
-
-      this.moveViewport(ctx, canvasEl, player);
-      player.update();
-
-      colliders.forEach((collider) => {
-        collider.render(ctx);
-      });
-
-      mario.update();
-
-
-      requestAnimationFrame(animateCallback);
-    };
-
-    animateCallback();
-  }
-}
-
-module.exports = Game;
-
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Util = __webpack_require__(0);
-const util = new Util();
-
-class Square {
-  constructor(centerX, centerY, width, height, color, colliders, ctx) {
-    this.centerX = centerX;
-    this.centerY = centerY;
-    this.width = width;
-    this.height = height;
-    this.color = color;
-
-    this.colliders = colliders;
-
-    this.moveX = 0;
-    this.velX = 0;
-    this.moveSpeed = 4;
-    this.groundAcc = 0.105;
-    this.airAcc = 0.045;
-
-    this.velY = 0;
-    this.minJumpVel = -3;
-    this.maxJumpVel = -7.25;
-    this.grav = 0.2;
-
-    this.grounded = false;
-
-    this.leftHeld = false;
-    this.rightHeld = false;
-    this.jumpPressed = false;
-
-    this.ctx = ctx;
-  }
-
-  update(ctx) {
-    this.handleInput();
-    this.movePos();
-    this.render(ctx);
-    this.collisions(ctx);
-  }
-
-  handleInput() {
-    if (!this.leftHeld && !this.rightHeld) {
-      this.moveX = 0;
-    }
-    if (this.leftHeld && !this.rightHeld) {
-      this.moveX = -1;
-    }
-    if (this.rightHeld && !this.leftHeld) {
-      this.moveX = 1;
-    }
-    if (this.jumpPressed) {
-      this.jump();
-      this.jumpPressed = false;
-    }
-  }
-
-  calcVelX() {
-    if (this.grounded) {
-      this.velX = util.lerp(this.velX, this.moveX, this.groundAcc);
-    } else {
-      this.velX = util.lerp(this.velX, this.moveX, this.airAcc);
-    }
-  }
-
-  calcVelY() {
-    this.velY += this.grav;
-  }
-
-  minJump() {
-    if (this.velY < this.minJumpVel) {
-      this.velY = this.minJumpVel;
-    }
-  }
-
-  jump() {
-    if (this.grounded) {
-      this.velY = this.maxJumpVel;
-    }
-  }
-
-  movePos() {
-    this.calcVelX();
-    this.centerX += (this.velX * this.moveSpeed);
-
-    this.calcVelY();
-    this.centerY += this.velY;
-  }
-
-  //---
-
-  collisions(ctx) {
-    this.horizontalCollisions(ctx);
-    this.grounded = this.verticalCollisions(ctx);
-  }
-
-  horizontalCollisions(ctx) {
-    const amount = 4;
-    //Prevents a hit with a collider below the square
-    const skin = 0.5;
-
-    for (var i = 0; i < amount; i++) {
-      let startX = 0;
-      let endX = 0;
-
-      let spacing = (i * ((this.height - skin) / (amount - 1)));
-
-      if (this.velX > 0) {
-        startX = [this.calcCenter()[0] + (this.width / 2), this.centerY + spacing];
-        endX = [this.calcCenter()[0] + (this.width / 2) + Math.abs(this.velX), this.centerY + spacing];
-      } else {
-        startX = [this.calcCenter()[0] - (this.width / 2), this.centerY + spacing];
-        endX = [this.calcCenter()[0] - (this.width / 2) - Math.abs(this.velX), this.centerY + spacing];
-      }
-
-      let hit = this.raycast(startX, endX, ctx, 'horizontal');
-
-      if (hit) {
-        if (this.velX > 0) {
-          this.centerX = (hit.collider.calcCenter()[0] - hit.collider.width / 2) - this.width;
-        } else {
-          this.centerX = (hit.collider.calcCenter()[0] + hit.collider.width / 2);
-        }
-        this.velX = 0;
-      }
-    }
-  }
-
-  verticalCollisions(ctx) {
-    const amount = 4;
-
-    let anyCollisions = false;
-
-    for (var i = 0; i < amount; i++) {
-      let startY = 0;
-      let endY = 0;
-
-      let spacing = (i * (this.width / (amount - 1)));
-
-      if (this.velY > 0) {
-        startY = [this.centerX + spacing, this.calcCenter()[1] + (this.height / 2)];
-        endY = [this.centerX + spacing, this.calcCenter()[1] + (this.height / 2) + Math.abs(this.velY)];
-      } else {
-        startY = [this.centerX + spacing, this.calcCenter()[1] - (this.height / 2)];
-        endY = [this.centerX + spacing, this.calcCenter()[1] - (this.height / 2) - Math.abs(this.velY)];
-      }
-
-      let hit = this.raycast(startY, endY, ctx, 'vertical');
-
-      if (hit) {
-        if (this.velY > 0) {
-          this.centerY = (hit.collider.calcCenter()[1] - hit.collider.height / 2) - this.height;
-        } else {
-          this.centerY = (hit.collider.calcCenter()[1] + hit.collider.height / 2);
-        }
-
-        anyCollisions = true;
-        this.velY = 0;
-      }
-
-    }
-    return anyCollisions;
-  }
-
-  checkCollision(point, type) {
-    //checks if point is within any of the colliders
-    let collision = false;
-
-    for (var i = 0; i < this.colliders.length; i++) {
-      if (point[1] > this.colliders[i].calcCenter()[1] - (this.colliders[i].height / 2) && point[1] < this.colliders[i].calcCenter()[1] + (this.colliders[i].height / 2)) {
-        if (point[0] > this.colliders[i].calcCenter()[0] - (this.colliders[i].width / 2) && point[0] < this.colliders[i].calcCenter()[0] + (this.colliders[i].width / 2)) {
-          return { collider: this.colliders[i]};
-        }
-      }
-    }
-  }
-
-  //---
-
-  render(ctx) {
-    ctx.fillStyle = this.color;
-    ctx.fillRect(this.centerX, this.centerY, this.width, this.height);
-  }
-
-  calcCenter() {
-    return [this.centerX + (this.width / 2), this.centerY + (this.height / 2)];
-  }
-
-  raycast(start, end, ctx, type) {
-    if (type !== 'grounded') {
-      this.renderRaycast(start, end, 'red', ctx);
-    }
-    return this.checkCollision(end, type);
-  }
-
-  renderRaycast(start, end, color, ctx) {
-    ctx.beginPath();
-    ctx.moveTo(start[0], start[1]);
-    ctx.lineTo(end[0], end[1]);
-    ctx.stroke();
-  }
-
-}
-
-module.exports = Square;
-
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports) {
-
-const Input = function (entity) {
-
-  let inputs = {
-    leftHeld: false,
-    rightHeld: false,
-    jumpPressed: false,
-    jumpReleased: false,
-    jumpFresh: true,
-    runHeld: false,
-    downHeld: false
-  };
-
-  const update = () => {
-    inputs.jumpReleased = false;
-    inputs.jumpPressed = false;
-  };
-
-  window.onkeydown = (e) => {
-    if (e.keyCode === 74 && inputs.jumpFresh) {
-      inputs.jumpPressed = true;
-      inputs.jumpFresh = false;
-    }
-    if (e.keyCode === 83) {
-      inputs.downHeld = true;
-    }
-    if(e.keyCode === 65) {
-      inputs.leftHeld = true;
-    } else if(e.keyCode === 68) {
-      inputs.rightHeld = true;
-    }
-    //j
-    if (e.keyCode === 75) {
-      inputs.runHeld = true;
-    }
-  };
-
-  window.onkeyup = (e) => {
-    if (e.keyCode === 65) {
-      inputs.leftHeld = false;
-    }
-    if (e.keyCode === 68) {
-      inputs.rightHeld = false;
-    }
-    if (e.keyCode === 74) {
-      inputs.jumpReleased = true;
-      inputs.jumpFresh = true;
-    }
-    if (e.keyCode === 83) {
-      inputs.downHeld = false;
-    }
-    //j
-    if (e.keyCode === 75) {
-      inputs.runHeld = false;
-    }
-  };
-
-  return {inputs, update};
-};
-
-module.exports = Input;
-
-
-/***/ }),
-/* 5 */
 /***/ (function(module, exports) {
 
 class Shape {
@@ -492,14 +107,121 @@ module.exports = Shape;
 
 
 /***/ }),
-/* 6 */
+/* 1 */
+/***/ (function(module, exports) {
+
+const Util = function() {
+  //constructor
+};
+
+Util.prototype.lerp = function(from, to, time) {
+  return from + time * (to - from);
+};
+
+module.exports = Util;
+
+
+/***/ }),
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(0);
+const Game = __webpack_require__(3);
+
+const canvasEl = document.getElementsByTagName("canvas")[0];
+
+// canvasEl.width = window.innerWidth;
+// canvasEl.height = window.innerHeight;
+canvasEl.width = 1280;
+canvasEl.height = 720;
+
+new Game(canvasEl.width, canvasEl.height).start(canvasEl);
+
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Util = __webpack_require__(1);
+const Shape = __webpack_require__(0);
+const MovingObject = __webpack_require__(4);
+const Sprite = __webpack_require__(7);
+const Level = __webpack_require__(8);
+
+const playerSquare = {x: 170, y: 275, width: 32, height: 56, color: 'rgba(200,170,255,0.8)'};
+const redSquare = {x: 220, y: 275, width: 32, height: 32, color: 'red'};
+
 const util = new Util();
-const Shape = __webpack_require__(5);
-const Input = __webpack_require__(4);
-const Collision = __webpack_require__(7);
+
+//---
+
+var offsetX = 0;
+var offsetY = 0;
+
+class Game {
+  constructor(xDim, yDim) {
+    this.xDim = xDim;
+    this.yDim = yDim;
+  }
+
+  moveViewport(ctx, canvasEl, target) {
+    let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, (-target.shape.pos.y + canvasEl.height / 2) + 150];
+    offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
+    offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
+
+    ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
+  }
+
+  render(ctx) {
+    //i have no idea why offset x and offset y have to be multiplied by -1
+    ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
+    ctx.scale(2, 2);
+  }
+
+  start(canvasEl) {
+    const ctx = canvasEl.getContext("2d");
+
+    const colliders = new Level(ctx).colliders;
+    const player = new MovingObject(playerSquare, colliders, ctx);
+
+
+    let image = new Image();
+    image.src = 'assets/images/mario.png';
+    let mario = new Sprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
+
+    const animateCallback = () => {
+      //clear canvas then render objects
+      this.render(ctx);
+
+      this.moveViewport(ctx, canvasEl, player);
+      player.update();
+
+
+      colliders.forEach((collider) => {
+        collider.render(ctx);
+      });
+
+      mario.update();
+
+
+      requestAnimationFrame(animateCallback);
+    };
+
+    animateCallback();
+  }
+}
+
+module.exports = Game;
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Util = __webpack_require__(1);
+const util = new Util();
+const Shape = __webpack_require__(0);
+const Input = __webpack_require__(5);
+const Collision = __webpack_require__(6);
 
 class MovingObject {
   constructor(shapeParameters, colliders, ctx) {
@@ -540,7 +262,6 @@ class MovingObject {
   }
 
   handleAnimation() {
-
     if (this.status.ducking) {
       this.animation.state = 'duck';
     } else {
@@ -650,7 +371,73 @@ module.exports = MovingObject;
 
 
 /***/ }),
-/* 7 */
+/* 5 */
+/***/ (function(module, exports) {
+
+const Input = function (entity) {
+
+  let inputs = {
+    leftHeld: false,
+    rightHeld: false,
+    jumpPressed: false,
+    jumpReleased: false,
+    jumpFresh: true,
+    runHeld: false,
+    downHeld: false
+  };
+
+  const update = () => {
+    inputs.jumpReleased = false;
+    inputs.jumpPressed = false;
+  };
+
+  window.onkeydown = (e) => {
+    if (e.keyCode === 74 && inputs.jumpFresh) {
+      inputs.jumpPressed = true;
+      inputs.jumpFresh = false;
+    }
+    if (e.keyCode === 83) {
+      inputs.downHeld = true;
+    }
+    if(e.keyCode === 65) {
+      inputs.leftHeld = true;
+    } else if(e.keyCode === 68) {
+      inputs.rightHeld = true;
+    }
+    //j
+    if (e.keyCode === 75) {
+      inputs.runHeld = true;
+    }
+  };
+
+  window.onkeyup = (e) => {
+    if (e.keyCode === 65) {
+      inputs.leftHeld = false;
+    }
+    if (e.keyCode === 68) {
+      inputs.rightHeld = false;
+    }
+    if (e.keyCode === 74) {
+      inputs.jumpReleased = true;
+      inputs.jumpFresh = true;
+    }
+    if (e.keyCode === 83) {
+      inputs.downHeld = false;
+    }
+    //j
+    if (e.keyCode === 75) {
+      inputs.runHeld = false;
+    }
+  };
+
+  return {inputs, update};
+};
+
+module.exports = Input;
+
+
+/***/ }),
+/* 6 */
 /***/ (function(module, exports) {
 
 class Collision {
@@ -794,32 +581,7 @@ module.exports = Collision;
 
 
 /***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Shape = __webpack_require__(5);
-
-class Level {
-  constructor(ctx) {
-    this.ctx = ctx;
-    this.colliders = [];
-    this.createLevel();
-  }
-  createLevel() {
-    const ground = new Shape({x: 200, y: 850, width: 4000, height: 900, color: 'black'}, this.ctx);
-    const ground2 = new Shape({x: 700, y: 850, width: 400, height: 900, color: 'black'}, this.ctx);
-    const ground3 = new Shape({x: -150, y: 0, width: 400, height: 1600, color: 'black'}, this.ctx);
-    const ground4 = new Shape({x: 650, y: 150, width: 800, height: 32, color: 'black'}, this.ctx);
-
-    this.colliders = [ground, ground2, ground3, ground4];
-  }
-}
-
-module.exports = Level;
-
-
-/***/ }),
-/* 9 */
+/* 7 */
 /***/ (function(module, exports) {
 
 class Sprite {
@@ -913,6 +675,7 @@ class Sprite {
       this.object.width,
       this.object.height,
       this.object.target.shape.pos.x - 16,
+      //vvv This is being subtracted by the white space above mario vvv
       this.object.target.shape.pos.y - 8,
       this.object.width,
       this.object.height
@@ -923,6 +686,32 @@ class Sprite {
 }
 
 module.exports = Sprite;
+
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+
+class Level {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.colliders = [];
+    this.createLevel();
+  }
+  createLevel() {
+    const ground = new Shape({x: 200, y: 850, width: 4000, height: 900, color: 'black'}, this.ctx);
+    const ground2 = new Shape({x: 700, y: 850, width: 400, height: 900, color: 'black'}, this.ctx);
+    const ground3 = new Shape({x: -150, y: 0, width: 400, height: 1600, color: 'black'}, this.ctx);
+    const ground4 = new Shape({x: 650, y: 150, width: 800, height: 32, color: 'black'}, this.ctx);
+    const ground5 = new Shape({x: 150, y: 550, width: 8000, height: 32, color: 'black'}, this.ctx);
+
+    this.colliders = [ground, ground2, ground3, ground4, ground5];
+  }
+}
+
+module.exports = Level;
 
 
 /***/ })
