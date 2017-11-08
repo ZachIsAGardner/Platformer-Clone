@@ -150,12 +150,13 @@ new Game(canvasEl.width, canvasEl.height).start(canvasEl);
 const Util = __webpack_require__(1);
 const Shape = __webpack_require__(0);
 const MovingObject = __webpack_require__(4);
+const Player = __webpack_require__(13);
 const AnimatedSprite = __webpack_require__(9);
 const Sprite = __webpack_require__(10);
 const Level = __webpack_require__(8);
 
-const playerSquare = {x: 600, y: -200, width: 32, height: 56, color: 'rgba(200,170,255,0)'};
-const redSquare = {x: 220, y: 275, width: 32, height: 32, color: 'red'};
+const playerSquare = {x: 0, y: 200, width: 32, height: 56, color: 'rgba(200,170,255,0)'};
+const redSquare = {x: 400, y: 200, width: 32, height: 32, color: 'red'};
 
 const util = new Util();
 
@@ -163,7 +164,7 @@ const util = new Util();
 
 var offset = {x: 0, y: 0};
 var border = {
-  x: {min: -16, max: 10000}, y: {min:-1024, max: 256}
+  x: {min: -16, max: 10000}, y: {min: -1024, max: 456}
 };
 
 class Game {
@@ -227,7 +228,7 @@ class Game {
   devMethods(player) {
     if (player.shape.pos.y > border.y.max) {
       player.vel.x, player.vel.y = 0;
-      player.shape.pos = {x: 0, y: -200};
+      player.shape.pos = {x: 0, y: 200};
     }
   }
 
@@ -260,11 +261,16 @@ class Game {
     const level = new Level(ctx);
     const colliders = level.colliders;
     const tiles = level.tiles;
-    
-    const player = new MovingObject(playerSquare, colliders, ctx);
+
+    const player = new Player(playerSquare, colliders, ctx);
     let image = new Image();
     image.src = 'assets/images/mario.png';
     let mario = new AnimatedSprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
+
+    const enemy = new MovingObject(redSquare, colliders, ctx);
+    // let galoombaImage = new Image();
+    // galoombaImage.src = 'assets/images/galoomba.png';
+    // let galoomba = new AnimatedSprite({ctx: ctx, image: image, target: enemy});
 
     const songs = this.startAudio();
 
@@ -279,6 +285,8 @@ class Game {
       player.update();
       mario.update();
 
+      enemy.update();
+
       colliders.forEach((collider) => {
         collider.render(ctx);
       });
@@ -286,6 +294,8 @@ class Game {
       tiles.forEach((tile) => {
         tile.render(ctx);
       });
+
+      level.update();
 
       if (this.dev) {
         this.devMethods(player);
@@ -318,7 +328,11 @@ class MovingObject {
     this.shape = new Shape(shapeParameters, ctx);
     this.vel = {x: 0, y: 0};
     this.input = {x: 0, y: 0, jump: false};
-    this.inputFetcher = new Input();
+    // if (inputType === 'user') {
+    //   this.inputFetcher = new Input();
+    // } else if (inputType === 'ai') {
+    //   this.inputFetcher = new
+    // }
     this.stats = {
       walkSpeed: 3.65,
       runSpeed: 5.05,
@@ -340,9 +354,11 @@ class MovingObject {
   }
 
   update() {
-    this.handleInput();
+    if (this.inputFetcher) {
+      this.handleInput();
+      this.inputFetcher.update();
+    }
     this.handleAnimation();
-    this.inputFetcher.update();
 
     this.movePos();
     this.calcVel();
@@ -684,12 +700,33 @@ class Level {
     this.ctx = ctx;
     this.colliders = [];
     this.tiles = [];
+    this.goalTape = {object: null, startPos: {x: 0, y: 0}, dir: -1};
     this.createLevel();
+  }
+
+  moveGoalTape() {
+    const tape = this.goalTape;
+
+    tape.object.pos.x = tape.startPos.x - 16;
+    if (tape.object.pos.y < tape.startPos.y - 256) {
+      tape.dir = 1;
+    }
+    if (tape.object.pos.y > tape.startPos.y) {
+      tape.dir = -1;
+    }
+
+    tape.object.pos.y += 2 * tape.dir;
+  }
+
+  update() {
+    this.moveGoalTape();
   }
 
   createLevel() {
     let groundSheet = new Image();
     groundSheet.src = 'assets/images/ground_tiles.png';
+    let objectSheet = new Image();
+    objectSheet.src = 'assets/images/misc_objects.png';
 
     const tl = { row: 0, col: 0, collider: true};
     const to = { row: 1, col: 0, collider: true};
@@ -710,8 +747,34 @@ class Level {
       ]
     };
 
+    const bt = { row: 0, col: 7, collider: false};
+    const bm = { row: 0, col: 8, collider: false};
+    const ft = { row: 1, col: 7, collider: false};
+    const fm = { row: 1, col: 8, collider: false};
+    const tt = { row: 2, col: 7, collider: false, width: 640, special: 'tape'};
+    const gg = {
+      chunk: [
+        [bt,__,ft],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,tt,fm],
+      ],
+      sheet: objectSheet
+    };
+
     const map = [
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,ch],
+      [__,__,__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,tr,__,__,ch],
@@ -732,7 +795,7 @@ class Level {
           return;
         }
         if (key.chunk) {
-          this.ParseMap(key.chunk, sheet, {x:i, y:j});
+          this.ParseMap(key.chunk, key.sheet || sheet, {x:i, y:j});
           return;
         }
         let newTile = new Sprite({
@@ -740,8 +803,15 @@ class Level {
           image: sheet,
           pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
           row: key.row,
-          col: key.col
+          col: key.col,
+          width: key.width,
+          height: key.height,
         });
+        if (key.special === "tape") {
+          this.goalTape.object = newTile.object;
+          this.goalTape.startPos.x = newTile.object.pos.x;
+          this.goalTape.startPos.y = newTile.object.pos.y;
+        }
         this.tiles.push(newTile);
 
         if (key.collider) {
@@ -876,7 +946,7 @@ module.exports = AnimatedSprite;
 /***/ (function(module, exports) {
 
 class Sprite {
-  constructor({ctx, width, height, image, pos, row, col}) {
+  constructor({ctx, width, height, image, pos, row, col, special}) {
     this.object = {
       ctx,
       width: width || 32,
@@ -884,7 +954,8 @@ class Sprite {
       image,
       row: row || 0,
       col: col || 0,
-      pos: pos || {x: 0, y: 0}
+      pos: pos || {x: 0, y: 0},
+      special
     };
   }
 
@@ -923,6 +994,22 @@ class SFX {
 }
 
 module.exports = SFX;
+
+
+/***/ }),
+/* 12 */,
+/* 13 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const MovingObject = __webpack_require__(4);
+
+class Player extends MovingObject {
+  constructor(shapeParameters, colliders, ctx) {
+    super(shapeParameters, colliders, ctx);
+  }
+}
+
+module.exports = MovingObject;
 
 
 /***/ })
