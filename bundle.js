@@ -118,7 +118,11 @@ Util.prototype.lerp = function(from, to, time) {
   return from + time * (to - from);
 };
 
-
+Util.prototype.pixelPerfect = function(pos) {
+  const x = Math.round(pos.x);
+  const y = Math.round(pos.y);
+  return {x, y};
+};
 
 module.exports = Util;
 
@@ -150,15 +154,17 @@ const AnimatedSprite = __webpack_require__(9);
 const Sprite = __webpack_require__(10);
 const Level = __webpack_require__(8);
 
-const playerSquare = {x: 0, y: -100, width: 32, height: 56, color: 'rgba(200,170,255,0.8)'};
+const playerSquare = {x: 600, y: -200, width: 32, height: 56, color: 'rgba(200,170,255,0)'};
 const redSquare = {x: 220, y: 275, width: 32, height: 32, color: 'red'};
 
 const util = new Util();
 
 //---
 
-var offsetX = 0;
-var offsetY = 0;
+var offset = {x: 0, y: 0};
+var border = {
+  x: {min: -16, max: 10000}, y: {min:-1024, max: 256}
+};
 
 class Game {
   constructor(xDim, yDim) {
@@ -166,30 +172,54 @@ class Game {
     this.yDim = yDim;
   }
 
+  checkBoundaries() {
+    if (-offset.x < border.x.min) {
+      offset.x = -border.x.min;
+    }
+    if (-offset.x + this.xDim > border.x.max) {
+      offset.x = -(border.x.max - this.xDim);
+    }
+    if (-offset.y < border.y.min) {
+      offset.y = -border.y.min;
+    }
+    if (-offset.y + this.yDim > border.y.max) {
+      offset.y = -(border.y.max - this.yDim);
+    }
+  }
+
   moveViewport(ctx, canvasEl, target) {
     let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, (-target.shape.pos.y + canvasEl.height / 2) + 150];
-    offsetX = util.lerp(offsetX, cameraCenter[0], 0.075);
-    offsetY = util.lerp(offsetY, cameraCenter[1], 0.075);
+    offset.x = util.lerp(offset.x, cameraCenter[0], 0.075);
+    offset.y = util.lerp(offset.y, cameraCenter[1], 0.075);
+    this.checkBoundaries();
 
-    ctx.setTransform(1, 0, 0, 1, offsetX, offsetY);
+    //for pixel perfect movement round up or down whatever
+    ctx.setTransform(1, 0, 0, 1, Math.round(offset.x), Math.round(offset.y));
   }
 
   createBackground(player, ctx) {
     let background = new Image();
     background.src = 'assets/images/background.png';
 
-    let parallax = player.shape.pos.x / 30;
+    let parallax = -offset.x / 30;
 
-    for (var i = 0; i < 2; i++) {
+    for (var i = 0; i < 3; i++) {
       ctx.drawImage(
-        background, 0, 0, 1024, 896, -offsetX + (1024 * i) - parallax, -offsetY - 174, 1024, 896
+        background,
+        0,
+        0,
+        1024,
+        896,
+        (-offset.x + (1024 * i) - parallax) - 1024,
+        -offset.y - 174, 1024,
+        896
       );
     }
   }
 
   render(ctx) {
     //i have no idea why offset x and offset y have to be multiplied by -1
-    ctx.clearRect(-offsetX, -offsetY, this.xDim, this.yDim);
+    ctx.clearRect(-offset.x, -offset.y, this.xDim, this.yDim);
     ctx.scale(2, 2);
   }
 
@@ -588,7 +618,7 @@ class Collision {
   }
 
   raycast(start, end, type) {
-    this.renderRaycast(start, end, 'red');
+    // this.renderRaycast(start, end, 'red');
     return this.checkCollision(end, type);
   }
 
@@ -647,6 +677,7 @@ class Level {
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,tr,__,__,ch],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
@@ -721,7 +752,7 @@ class AnimatedSprite {
     if (this.object.target.animation.face === 'right') {
       this.object.col = 0;
     } else {
-      this.object.col = 1;
+      this.object.col = 2;
     }
     switch (this.object.target.animation.state) {
       case 'walk':
