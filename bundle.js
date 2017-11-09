@@ -68,13 +68,15 @@
 /***/ (function(module, exports) {
 
 class Shape {
-  constructor(params, ctx) {
+  constructor(params, ctx, type) {
     this.width = params.width;
     this.height = params.height;
     this.color = params.color;
 
     this.pos = {x: 0, y: 0};
     this.setPos(params.x, params.y);
+
+    this.type = type || '';
 
     this.ctx = ctx;
   }
@@ -372,12 +374,16 @@ class Game {
   constructor(xDim, yDim) {
     this.xDim = xDim;
     this.yDim = yDim;
+    this.canvasEl = null;
+    this.req = null;
     this.dev = false;
 
     this.level = null;
     this.colliders = [];
     this.tiles = [];
     this.entities = {player: null, enemies: []};
+
+    this.screen = {alpha: 3, rate: -0.075, loading: true};
   }
 
   checkBoundaries() {
@@ -470,8 +476,31 @@ class Game {
     this.entities = {player: null, enemies: []};
   }
 
+  loadScreen(ctx) {
+    this.screen.alpha += this.screen.rate;
+    if (this.screen.alpha > 2) {
+      this.screen.rate *= -1;
+      this.screen.alpha = 1;
+      this.restart();
+    }
+    if (this.screen.alpha < 0) {
+      this.screen.loading = false;
+      this.screen.rate *= -1;
+      this.screen.alpha = 0;
+    }
+    ctx.fillStyle = `rgba(0,0,0,${this.screen.alpha})`;
+    ctx.fillRect(-offset.x, -offset.y, this.xDim, this.yDim);
+  }
+
+  restart() {
+    this.destroyEverything();
+    this.start(this.canvasEl);
+    cancelAnimationFrame(this.req);
+  }
+
   start(canvasEl) {
     const ctx = canvasEl.getContext("2d");
+    this.canvasEl = canvasEl;
 
     this.level = new Level(ctx);
     this.colliders = this.level.colliders;
@@ -479,6 +508,7 @@ class Game {
     this.entities = this.level.entities;
 
     const songs = this.startAudio();
+
 
     const animateCallback = () => {
       this.handleAudio(songs[0], songs[1]);
@@ -510,14 +540,14 @@ class Game {
         this.devMethods(this.entities.player);
       }
 
-      if (!this.entities.player.status.alive) {
-        this.destroyEverything();
-        this.start(canvasEl);
-        return;
-        // this.entities.player.status.alive = true;
+      if (this.entities.player.status.remove) {
+        this.screen.loading = true;
+      }
+      if (this.screen.loading) {
+        this.loadScreen(ctx);
       }
 
-      requestAnimationFrame(animateCallback);
+      this.req = requestAnimationFrame(animateCallback);
     };
 
     animateCallback();
@@ -591,6 +621,10 @@ class Collision {
   }
 
   handleHorizontalCollision(hit) {
+    if (hit.collider.type === 'kill') {
+      this.object.die();
+      return;
+    }
     if (this.vel.x > 0) {
       this.shape.pos.x = (hit.collider.calcCenter().x - hit.collider.width / 2) - this.shape.width;
     } else {
@@ -643,6 +677,10 @@ class Collision {
   }
 
   handleVerticalCollision(hit) {
+    if (hit.collider.type === 'kill') {
+      this.object.die();
+      return;
+    }
     if (this.vel.y > 0) {
       this.shape.pos.y = (hit.collider.calcCenter().y - hit.collider.height / 2) - this.shape.height;
     } else {
@@ -653,7 +691,6 @@ class Collision {
   }
 
   handleVerticalCollisionEnemy(hit) {
-
     if (this.vel.y > 0) {
       hit.enemy.die();
       this.object.minJump();
@@ -1076,6 +1113,9 @@ class Level {
 
   moveGoalTape() {
     const tape = this.goalTape;
+    if (!tape.object) {
+      return;
+    }
 
     tape.object.pos.x = tape.startPos.x - 16;
     if (tape.object.pos.y < tape.startPos.y - 256) {
@@ -1105,6 +1145,10 @@ class Level {
     };
     const en = {
       entity: 'enemy'
+    };
+
+    const ki = {
+      entity: 'kill'
     };
 
     const tl = { row: 0, col: 0, collider: true};
@@ -1147,21 +1191,24 @@ class Level {
     };
 
     const map = [
-      [__,__,__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,pl,__,__,__,__,__,__,__,__,__,__,__,en,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,tr,__,__,ch],
+      [__,__,__,__,__,__,__,__,en,__,__,__,__,__,__,__,__,__,__],
+      [__,pl,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__],
+      [tl,to,to,to,to,to,to,mi,mi,mi,to,to,to,to,to,tr,__,__,ch],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [ki,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
     ];
 
     this.ParseMap(map, groundSheet, {x:0, y: 0}, true);
@@ -1238,6 +1285,8 @@ class Level {
       case 'enemy':
         this.entities.enemies.push(new Galoomba({x, y, width: 32, height: 32}, [], this.ctx));
         return;
+      case 'kill':
+        this.colliders.push(new Shape({x, y, width: 10000, height: 32}, this.ctx, 'kill'));
       default:
 
     }
