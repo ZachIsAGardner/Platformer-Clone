@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 2);
+/******/ 	return __webpack_require__(__webpack_require__.s = 5);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -108,6 +108,167 @@ module.exports = Shape;
 
 /***/ }),
 /* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Util = __webpack_require__(3);
+const util = new Util();
+const Shape = __webpack_require__(0);
+
+const Collision = __webpack_require__(7);
+const SFX = __webpack_require__(8);
+const sfx = new SFX();
+
+class MovingObject {
+  constructor(shapeParameters, colliders, ctx, enemies) {
+    this.shape = new Shape(shapeParameters, ctx);
+    this.vel = {x: 0, y: 0};
+    this.input = {x: 0, y: 0, jump: false};
+
+    this.stats = {
+      walkSpeed: 3.05,
+      runSpeed: 5.05,
+      pSpeed: 7.25,
+      groundAcc: 0.0525,
+      airAcc: 0.035,
+      minJump: -4.75,
+      jump: -8.45,
+      grav: 0.2625
+    };
+    this.animation = {
+      face: 'right',
+      state: 'idle'
+    };
+    this.enemies = enemies;
+    this.colliders = colliders;
+    this.collision = new Collision(this, ctx);
+
+    this.status = {grounded: false, running: false, pMeter: 0, pRun: false, alive: true, remove: false};
+  }
+
+  update() {
+    this.movePos();
+    this.calcVel();
+    this.shape.render();
+    if (this.status.alive) {
+      this.collision.collisions();
+    }
+  }
+
+  speedType() {
+    if (this.collision.grounded && this.status.ducking) {
+      this.status.pMeter = 0;
+      return 0;
+    }
+    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running && this.collision.grounded) {
+      this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
+    } else if (this.collision.grounded){
+      this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
+    }
+    if (this.status.pMeter > 0.9) {
+      this.status.pRun = true;
+      return this.stats.pSpeed;
+    } else {
+      this.status.pRun = false;
+      return (this.status.running) ? this.stats.runSpeed : this.stats.walkSpeed;
+    }
+  }
+
+  calcVel() {
+    let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
+    let speed = this.speedType();
+    this.vel.x = util.lerp(this.vel.x, (this.input.x * speed), acc);
+    this.vel.y += this.stats.grav;
+  }
+
+  minJump() {
+    this.vel.y = this.stats.minJump;
+  }
+  jump() {
+    this.vel.y = this.stats.jump;
+  }
+
+  movePos() {
+    this.shape.pos.x += this.vel.x;
+    this.shape.pos.y += this.vel.y;
+  }
+
+  die() {
+    this.status.alive = false;
+    setTimeout(() => this.remove(), 2000);
+  }
+
+  remove() {
+    this.status.remove = true;
+  }
+
+}
+
+module.exports = MovingObject;
+
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports) {
+
+class AnimatedSprite {
+  constructor({ctx, width, height, image, ticksPerFrame, target, state, face, numberOfFrames, offset}) {
+    this.object = {
+      ctx,
+      width: width || 32,
+      height: height || 32,
+      image,
+      row: 0,
+      col: 0,
+      tickCount: 0,
+      ticksPerFrame: 6,
+      numberOfFrames: numberOfFrames || 14,
+      range: {start: 0, end: 3},
+      target,
+      currentState: 'idle',
+      offset: offset || {x: 0, y: 0}
+    };
+  }
+
+  stateChange() {
+    this.object.row = this.object.range.start;
+  }
+
+  update() {
+    this.object.ticksPerFrame = 16 / Math.abs(this.object.target.vel.x);
+    this.object.tickCount += 1;
+
+    if (this.object.tickCount > this.object.ticksPerFrame) {
+      this.object.row += 1;
+      this.object.tickCount = 0;
+      if (this.object.row > this.object.range.end - 1) {
+        this.object.row = this.object.range.start;
+      }
+    }
+    this.render();
+  }
+
+  render() {
+    this.object.ctx.drawImage(
+      this.object.image,
+      this.object.row * this.object.width,
+      this.object.col * this.object.height,
+      this.object.width,
+      this.object.height,
+      this.object.target.shape.pos.x - this.object.offset.x,
+      this.object.target.shape.pos.y - this.object.offset.y,
+      this.object.width,
+      this.object.height
+    );
+
+  }
+
+}
+
+module.exports = AnimatedSprite;
+
+
+/***/ }),
+/* 3 */
 /***/ (function(module, exports) {
 
 const Util = function() {
@@ -128,10 +289,49 @@ module.exports = Util;
 
 
 /***/ }),
-/* 2 */
+/* 4 */
+/***/ (function(module, exports) {
+
+class Sprite {
+  constructor({ctx, width, height, image, pos, row, col, special}) {
+    this.object = {
+      ctx,
+      width: width || 32,
+      height: height || 32,
+      image,
+      row: row || 0,
+      col: col || 0,
+      pos: pos || {x: 0, y: 0},
+      special
+    };
+  }
+
+  render() {
+    //assuming 32 x 32 sized sprite
+
+    this.object.ctx.drawImage(
+      this.object.image,
+      this.object.row * 32,
+      this.object.col * 32,
+      this.object.width,
+      this.object.height,
+      this.object.pos.x - 16,
+      this.object.pos.y - 16,
+      this.object.width,
+      this.object.height
+    );
+
+  }
+}
+
+module.exports = Sprite;
+
+
+/***/ }),
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Game = __webpack_require__(3);
+const Game = __webpack_require__(6);
 
 const canvasEl = document.getElementsByTagName("canvas")[0];
 
@@ -144,22 +344,20 @@ new Game(canvasEl.width, canvasEl.height).start(canvasEl);
 
 
 /***/ }),
-/* 3 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(1);
+const Util = __webpack_require__(3);
 const Shape = __webpack_require__(0);
-const MovingObject = __webpack_require__(4);
-const Player = __webpack_require__(13);
-const Galoomba = __webpack_require__(14);
-const AnimatedSprite = __webpack_require__(9);
-const MarioSprite = __webpack_require__(15);
-const GaloombaSprite = __webpack_require__(16);
-const Sprite = __webpack_require__(10);
-const Level = __webpack_require__(8);
+const MovingObject = __webpack_require__(1);
+const Player = __webpack_require__(9);
+
+const AnimatedSprite = __webpack_require__(2);
+const Sprite = __webpack_require__(4);
+const Level = __webpack_require__(14);
 
 const playerSquare = {x: 0, y: 200, width: 32, height: 56, color: 'rgba(200,170,255,0)'};
-const redSquare = {x: 350, y: 200, width: 32, height: 32, color: 'rgba(200,170,255,0)'};
+const redSquare = {x: 320, y: 200, width: 32, height: 32, color: 'rgba(200,170,255,0)'};
 
 const util = new Util();
 
@@ -175,6 +373,11 @@ class Game {
     this.xDim = xDim;
     this.yDim = yDim;
     this.dev = false;
+
+    this.level = null;
+    this.colliders = [];
+    this.tiles = [];
+    this.entities = {player: null, enemies: []};
   }
 
   checkBoundaries() {
@@ -260,26 +463,20 @@ class Game {
     }
   }
 
+  destroyEverything() {
+    this.level = null;
+    this.colliders = [];
+    this.tiles = [];
+    this.entities = {player: null, enemies: []};
+  }
+
   start(canvasEl) {
     const ctx = canvasEl.getContext("2d");
 
-    const level = new Level(ctx);
-    const colliders = level.colliders;
-    const tiles = level.tiles;
-
-
-    const player = new Player(playerSquare, colliders, ctx, 'assets/images/mario.png');
-    let image = new Image();
-    image.src = 'assets/images/mario.png';
-    let mario = new MarioSprite({ctx: ctx, width: 64, height: 64, image: image, target: player, offset:{x:16, y:8}});
-
-    const enemy = new Galoomba(redSquare, colliders, ctx, [player]);
-    let galoombaImage = new Image();
-    galoombaImage.src = 'assets/images/galoomba.png';
-    let galoomba = new GaloombaSprite({ctx: ctx, image: galoombaImage, target: enemy, numberOfFrames: 4});
-
-    const enemies = [enemy];
-    player.collision.enemies = enemies;
+    this.level = new Level(ctx);
+    this.colliders = this.level.colliders;
+    this.tiles = this.level.tiles;
+    this.entities = this.level.entities;
 
     const songs = this.startAudio();
 
@@ -288,27 +485,36 @@ class Game {
       //clear canvas then render objects
       this.render(ctx);
 
-      this.moveViewport(ctx, canvasEl, player);
-      this.createBackground(player, ctx);
+      this.moveViewport(ctx, canvasEl, this.entities.player);
+      this.createBackground(this.entities.player, ctx);
 
-      player.update();
-      mario.update();
-
-      enemy.update();
-      galoomba.update();
-
-      colliders.forEach((collider) => {
+      this.colliders.forEach((collider) => {
         collider.render(ctx);
       });
 
-      tiles.forEach((tile) => {
+      this.tiles.forEach((tile) => {
         tile.render(ctx);
       });
 
-      level.update();
+      this.entities.player.update();
+      this.entities.enemies.forEach((entity, i) => {
+        if (entity.status.remove) {
+          this.entities.enemies.splice(i, 1);
+        }
+        entity.update(ctx);
+      });
+
+      this.level.update();
 
       if (this.dev) {
-        this.devMethods(player);
+        this.devMethods(this.entities.player);
+      }
+
+      if (!this.entities.player.status.alive) {
+        this.destroyEverything();
+        this.start(canvasEl);
+        return;
+        // this.entities.player.status.alive = true;
       }
 
       requestAnimationFrame(animateCallback);
@@ -322,167 +528,7 @@ module.exports = Game;
 
 
 /***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Util = __webpack_require__(1);
-const util = new Util();
-const Shape = __webpack_require__(0);
-
-const Collision = __webpack_require__(6);
-const SFX = __webpack_require__(11);
-const sfx = new SFX();
-
-class MovingObject {
-  constructor(shapeParameters, colliders, ctx, enemies) {
-    this.shape = new Shape(shapeParameters, ctx);
-    this.vel = {x: 0, y: 0};
-    this.input = {x: 0, y: 0, jump: false};
-
-    this.stats = {
-      walkSpeed: 3.65,
-      runSpeed: 5.05,
-      pSpeed: 7.25,
-      groundAcc: 0.0525,
-      airAcc: 0.035,
-      minJump: -4.75,
-      jump: -8.45,
-      grav: 0.2625
-    };
-    this.animation = {
-      face: 'right',
-      state: 'idle'
-    };
-    this.enemies = enemies;
-    this.colliders = colliders;
-    this.collision = new Collision(this, ctx);
-
-    this.status = {grounded: false, running: false, pMeter: 0, pRun: false, alive: true};
-  }
-
-  update() {
-    this.movePos();
-    this.calcVel();
-    this.shape.render();
-    if (this.status.alive) {
-      this.collision.collisions();
-    }
-  }
-
-  speedType() {
-    if (this.collision.grounded && this.status.ducking) {
-      this.status.pMeter = 0;
-      return 0;
-    }
-    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running && this.collision.grounded) {
-      this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
-    } else if (this.collision.grounded){
-      this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
-    }
-    if (this.status.pMeter > 0.9) {
-      this.status.pRun = true;
-      return this.stats.pSpeed;
-    } else {
-      this.status.pRun = false;
-      return (this.status.running) ? this.stats.runSpeed : this.stats.walkSpeed;
-    }
-  }
-
-  calcVel() {
-    let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
-    let speed = this.speedType();
-    this.vel.x = util.lerp(this.vel.x, (this.input.x * speed), acc);
-    this.vel.y += this.stats.grav;
-  }
-
-  minJump() {
-    this.vel.y = this.stats.minJump;
-  }
-  jump() {
-    this.vel.y = this.stats.jump;
-  }
-
-  movePos() {
-    this.shape.pos.x += this.vel.x;
-    this.shape.pos.y += this.vel.y;
-  }
-
-  die() {
-    this.status.alive = false;
-  }
-}
-
-module.exports = MovingObject;
-
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports) {
-
-const Input = function (entity) {
-
-  let inputs = {
-    leftHeld: false,
-    rightHeld: false,
-    jumpPressed: false,
-    jumpReleased: false,
-    jumpFresh: true,
-    runHeld: false,
-    downHeld: false
-  };
-
-  const update = () => {
-    inputs.jumpReleased = false;
-    inputs.jumpPressed = false;
-  };
-
-  window.onkeydown = (e) => {
-    if (e.keyCode === 74 && inputs.jumpFresh) {
-      inputs.jumpPressed = true;
-      inputs.jumpFresh = false;
-    }
-    if (e.keyCode === 83) {
-      inputs.downHeld = true;
-    }
-    if(e.keyCode === 65) {
-      inputs.leftHeld = true;
-    } else if(e.keyCode === 68) {
-      inputs.rightHeld = true;
-    }
-    //j
-    if (e.keyCode === 75) {
-      inputs.runHeld = true;
-    }
-  };
-
-  window.onkeyup = (e) => {
-    if (e.keyCode === 65) {
-      inputs.leftHeld = false;
-    }
-    if (e.keyCode === 68) {
-      inputs.rightHeld = false;
-    }
-    if (e.keyCode === 74) {
-      inputs.jumpReleased = true;
-      inputs.jumpFresh = true;
-    }
-    if (e.keyCode === 83) {
-      inputs.downHeld = false;
-    }
-    //j
-    if (e.keyCode === 75) {
-      inputs.runHeld = false;
-    }
-  };
-
-  return {inputs, update};
-};
-
-module.exports = Input;
-
-
-/***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports) {
 
 class Collision {
@@ -654,7 +700,7 @@ class Collision {
   }
 
   raycast(start, end, type) {
-    this.renderRaycast(start, end, 'red');
+    // this.renderRaycast(start, end, 'red');
     return this.checkCollision(end, type) || this.checkCollisionEnemy(end);
   }
 
@@ -670,252 +716,7 @@ module.exports = Collision;
 
 
 /***/ }),
-/* 7 */,
 /* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(10);
-
-class Level {
-  constructor(ctx) {
-    this.ctx = ctx;
-    this.colliders = [];
-    this.tiles = [];
-    this.goalTape = {object: null, startPos: {x: 0, y: 0}, dir: -1};
-    this.createLevel();
-  }
-
-  moveGoalTape() {
-    const tape = this.goalTape;
-
-    tape.object.pos.x = tape.startPos.x - 16;
-    if (tape.object.pos.y < tape.startPos.y - 256) {
-      tape.dir = 1;
-    }
-    if (tape.object.pos.y > tape.startPos.y) {
-      tape.dir = -1;
-    }
-
-    tape.object.pos.y += 2 * tape.dir;
-  }
-
-  update() {
-    this.moveGoalTape();
-  }
-
-  createLevel() {
-    let groundSheet = new Image();
-    groundSheet.src = 'assets/images/ground_tiles.png';
-    let objectSheet = new Image();
-    objectSheet.src = 'assets/images/misc_objects.png';
-
-    const tl = { row: 0, col: 0, collider: true};
-    const to = { row: 1, col: 0, collider: true};
-    const tr = { row: 2, col: 0, collider: true};
-    const ml = { row: 0, col: 1, collider: true};
-    const mi = { row: 1, col: 1, collider: false};
-    const mr = { row: 2, col: 1, collider: true};
-    const bl = { row: 0, col: 2, collider: true};
-    const bo = { row: 1, col: 2, collider: true};
-    const br = { row: 2, col: 2, collider: true};
-    const __ = null;
-
-    const ch = {
-      chunk: [
-        [tl,to,tr],
-        [ml,mi,mr],
-        [bl,bo,br],
-      ]
-    };
-
-    const bt = { row: 0, col: 7, collider: false};
-    const bm = { row: 0, col: 8, collider: false};
-    const ft = { row: 1, col: 7, collider: false};
-    const fm = { row: 1, col: 8, collider: false};
-    const tt = { row: 2, col: 7, collider: false, width: 640, special: 'tape'};
-    const gg = {
-      chunk: [
-        [bt,__,ft],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,tt,fm],
-      ],
-      sheet: objectSheet
-    };
-
-    const map = [
-      [__,__,__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,to,to,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,to,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,tr,__,__,ch],
-      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
-      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
-      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
-      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
-      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
-    ];
-
-    this.ParseMap(map, groundSheet);
-  }
-
-  ParseMap(map, sheet, offset={x:0, y:0}) {
-    map.forEach((row, j) => {
-      row.forEach((key, i) => {
-        if (key === null) {
-          return;
-        }
-        if (key.chunk) {
-          this.ParseMap(key.chunk, key.sheet || sheet, {x:i, y:j});
-          return;
-        }
-        let newTile = new Sprite({
-          ctx: this.ctx,
-          image: sheet,
-          pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
-          row: key.row,
-          col: key.col,
-          width: key.width,
-          height: key.height,
-        });
-        if (key.special === "tape") {
-          this.goalTape.object = newTile.object;
-          this.goalTape.startPos.x = newTile.object.pos.x;
-          this.goalTape.startPos.y = newTile.object.pos.y;
-        }
-        this.tiles.push(newTile);
-
-        if (key.collider) {
-          let newGround = new Shape({
-            x: (i + offset.x) * 32,
-            y: (j + offset.y) * 32,
-            width: 32,
-            height: 32,
-            color: 'rgba(0,0,0,0)'},
-            this.ctx
-          );
-          this.colliders.push(newGround);
-        }
-      });
-    });
-  }
-}
-
-module.exports = Level;
-
-
-/***/ }),
-/* 9 */
-/***/ (function(module, exports) {
-
-class AnimatedSprite {
-  constructor({ctx, width, height, image, ticksPerFrame, target, state, face, numberOfFrames, offset}) {
-    this.object = {
-      ctx,
-      width: width || 32,
-      height: height || 32,
-      image,
-      row: 0,
-      col: 0,
-      tickCount: 0,
-      ticksPerFrame: 6,
-      numberOfFrames: numberOfFrames || 14,
-      range: {start: 0, end: 3},
-      target,
-      currentState: 'idle',
-      offset: offset || {x: 0, y: 0}
-    };
-  }
-
-  stateChange() {
-    this.object.row = this.object.range.start;
-  }
-
-  update() {
-    this.object.tickCount += 1;
-
-    if (this.object.tickCount > this.object.ticksPerFrame) {
-      this.object.row += 1;
-      this.object.tickCount = 0;
-      if (this.object.row > this.object.range.end - 1) {
-        this.object.row = this.object.range.start;
-      }
-    }
-    this.render();
-  }
-
-  render() {
-    this.object.ctx.drawImage(
-      this.object.image,
-      this.object.row * this.object.width,
-      this.object.col * this.object.height,
-      this.object.width,
-      this.object.height,
-      this.object.target.shape.pos.x - this.object.offset.x,
-      this.object.target.shape.pos.y - this.object.offset.y,
-      this.object.width,
-      this.object.height
-    );
-
-  }
-
-}
-
-module.exports = AnimatedSprite;
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports) {
-
-class Sprite {
-  constructor({ctx, width, height, image, pos, row, col, special}) {
-    this.object = {
-      ctx,
-      width: width || 32,
-      height: height || 32,
-      image,
-      row: row || 0,
-      col: col || 0,
-      pos: pos || {x: 0, y: 0},
-      special
-    };
-  }
-
-  render() {
-    //assuming 32 x 32 sized sprite
-
-    this.object.ctx.drawImage(
-      this.object.image,
-      this.object.row * 32,
-      this.object.col * 32,
-      this.object.width,
-      this.object.height,
-      this.object.pos.x - 16,
-      this.object.pos.y - 16,
-      this.object.width,
-      this.object.height
-    );
-
-  }
-}
-
-module.exports = Sprite;
-
-
-/***/ }),
-/* 11 */
 /***/ (function(module, exports) {
 
 class SFX {
@@ -931,17 +732,25 @@ module.exports = SFX;
 
 
 /***/ }),
-/* 12 */,
-/* 13 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const MovingObject = __webpack_require__(4);
-const Input = __webpack_require__(5);
+const MovingObject = __webpack_require__(1);
+const Input = __webpack_require__(10);
+const MarioSprite = __webpack_require__(12);
 
 class Player extends MovingObject {
   constructor(shapeParameters, colliders, ctx, enemies) {
     super(shapeParameters, colliders, ctx, enemies);
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
     this.inputFetcher = new Input();
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/mario.png';
+    return new MarioSprite({ctx: this.ctx, width: 64, height: 64, image: image, target: this, offset:{x:16, y:8}});
   }
 
   handleAnimation() {
@@ -1021,6 +830,7 @@ class Player extends MovingObject {
       this.handleInput();
       this.inputFetcher.update();
     }
+    this.sprite.update();
     this.handleAnimation();
     super.update();
   }
@@ -1030,10 +840,12 @@ class Player extends MovingObject {
   }
 
   die() {
-    super.die();
-    this.jump();
-    this.input.x = 0;
-    this.vel.x = 0;
+    if (this.status.alive) {
+      super.die();
+      this.jump();
+      this.input.x = 0;
+      this.vel.x = 0;
+    }
   }
 }
 
@@ -1041,17 +853,97 @@ module.exports = Player;
 
 
 /***/ }),
-/* 14 */
+/* 10 */
+/***/ (function(module, exports) {
+
+const Input = function (entity) {
+
+  let inputs = {
+    leftHeld: false,
+    rightHeld: false,
+    jumpPressed: false,
+    jumpReleased: false,
+    jumpFresh: true,
+    runHeld: false,
+    downHeld: false
+  };
+
+  const update = () => {
+    inputs.jumpReleased = false;
+    inputs.jumpPressed = false;
+  };
+
+  window.onkeydown = (e) => {
+    if (e.keyCode === 74 && inputs.jumpFresh) {
+      inputs.jumpPressed = true;
+      inputs.jumpFresh = false;
+    }
+    if (e.keyCode === 83) {
+      inputs.downHeld = true;
+    }
+    if(e.keyCode === 65) {
+      inputs.leftHeld = true;
+    } else if(e.keyCode === 68) {
+      inputs.rightHeld = true;
+    }
+    //j
+    if (e.keyCode === 75) {
+      inputs.runHeld = true;
+    }
+  };
+
+  window.onkeyup = (e) => {
+    if (e.keyCode === 65) {
+      inputs.leftHeld = false;
+    }
+    if (e.keyCode === 68) {
+      inputs.rightHeld = false;
+    }
+    if (e.keyCode === 74) {
+      inputs.jumpReleased = true;
+      inputs.jumpFresh = true;
+    }
+    if (e.keyCode === 83) {
+      inputs.downHeld = false;
+    }
+    //j
+    if (e.keyCode === 75) {
+      inputs.runHeld = false;
+    }
+  };
+
+  return {inputs, update};
+};
+
+module.exports = Input;
+
+
+/***/ }),
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const MovingObject = __webpack_require__(4);
+const MovingObject = __webpack_require__(1);
+const GaloombaSprite = __webpack_require__(13);
 
 class Galoomba extends MovingObject {
   constructor(shapeParameters, colliders, ctx) {
     super(shapeParameters, colliders, ctx);
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
     this.input.x = -1;
     this.stats.walkSpeed = 0.5;
     this.animation.state = 'walk';
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/galoomba.png';
+    return new GaloombaSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
+  }
+
+  update() {
+    super.update();
+    this.sprite.update();
   }
 }
 
@@ -1059,10 +951,10 @@ module.exports = Galoomba;
 
 
 /***/ }),
-/* 15 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const AnimatedSprite = __webpack_require__(9);
+const AnimatedSprite = __webpack_require__(2);
 
 class MarioSprite extends AnimatedSprite {
   parseState() {
@@ -1075,7 +967,6 @@ class MarioSprite extends AnimatedSprite {
     switch (this.object.target.animation.state) {
       case 'walk':
         this.object.range = {start: 0, end: 3};
-        this.object.ticksPerFrame = 6;
         break;
       case 'idle':
         this.object.range = {start: 0, end: 0};
@@ -1091,7 +982,6 @@ class MarioSprite extends AnimatedSprite {
         break;
       case 'run':
         this.object.range = {start: 3, end: 6};
-        this.object.ticksPerFrame = 2;
         break;
       case 'runJump':
         this.object.range = {start: 12, end: 12};
@@ -1101,6 +991,7 @@ class MarioSprite extends AnimatedSprite {
         break;
       case 'die':
         this.object.range = {start: 13, end: 15};
+        this.object.col = 0;
         this.object.ticksPerFrame = 4;
         break;
       default:
@@ -1124,10 +1015,10 @@ module.exports = MarioSprite;
 
 
 /***/ }),
-/* 16 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const AnimatedSprite = __webpack_require__(9);
+const AnimatedSprite = __webpack_require__(2);
 
 class GaloombaSprite extends AnimatedSprite {
   parseState() {
@@ -1162,6 +1053,198 @@ class GaloombaSprite extends AnimatedSprite {
 }
 
 module.exports = GaloombaSprite;
+
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const Sprite = __webpack_require__(4);
+const Player = __webpack_require__(9);
+const Galoomba = __webpack_require__(11);
+
+class Level {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.colliders = [];
+    this.tiles = [];
+    this.entities = {player: null, enemies: []};
+    this.goalTape = {object: null, startPos: {x: 0, y: 0}, dir: -1};
+    this.createLevel();
+  }
+
+  moveGoalTape() {
+    const tape = this.goalTape;
+
+    tape.object.pos.x = tape.startPos.x - 16;
+    if (tape.object.pos.y < tape.startPos.y - 256) {
+      tape.dir = 1;
+    }
+    if (tape.object.pos.y > tape.startPos.y) {
+      tape.dir = -1;
+    }
+
+    tape.object.pos.y += 2 * tape.dir;
+  }
+
+  update() {
+    this.moveGoalTape();
+  }
+
+  createLevel() {
+    let groundSheet = new Image();
+    groundSheet.src = 'assets/images/ground_tiles.png';
+    let objectSheet = new Image();
+    objectSheet.src = 'assets/images/misc_objects.png';
+    let marioSheet = new Image();
+    marioSheet.src = 'assets/images/mario.png';
+
+    const pl = {
+      entity: 'player'
+    };
+    const en = {
+      entity: 'enemy'
+    };
+
+    const tl = { row: 0, col: 0, collider: true};
+    const to = { row: 1, col: 0, collider: true};
+    const tr = { row: 2, col: 0, collider: true};
+    const ml = { row: 0, col: 1, collider: true};
+    const mi = { row: 1, col: 1, collider: false};
+    const mr = { row: 2, col: 1, collider: true};
+    const bl = { row: 0, col: 2, collider: true};
+    const bo = { row: 1, col: 2, collider: true};
+    const br = { row: 2, col: 2, collider: true};
+    const __ = null;
+
+    const ch = {
+      chunk: [
+        [tl,to,tr],
+        [ml,mi,mr],
+        [bl,bo,br],
+      ]
+    };
+
+    const bt = { row: 0, col: 7, collider: false};
+    const bm = { row: 0, col: 8, collider: false};
+    const ft = { row: 1, col: 7, collider: false};
+    const fm = { row: 1, col: 8, collider: false};
+    const tt = { row: 2, col: 7, collider: false, width: 640, special: 'tape'};
+    const gg = {
+      chunk: [
+        [bt,__,ft],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,tt,fm],
+      ],
+      sheet: objectSheet
+    };
+
+    const map = [
+      [__,__,__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,pl,__,__,__,__,__,__,__,__,__,__,__,en,__,__,__,__,__],
+      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,tr,__,__,ch],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+      [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__],
+    ];
+
+    this.ParseMap(map, groundSheet, {x:0, y: 0}, true);
+  }
+
+  ParseMap(map, sheet, offset={x:0, y:0}, main) {
+    map.forEach((row, j) => {
+      row.forEach((key, i) => {
+        if (key === null) {
+          return;
+        }
+
+        if (key.entity) {
+          this.createEntity(key.entity, i * 32, j * 32);
+          return;
+        }
+        if (key.chunk) {
+          this.ParseMap(key.chunk, key.sheet || sheet, {x:i, y:j});
+          return;
+        }
+
+        let newTile = new Sprite({
+          ctx: this.ctx,
+          image: sheet,
+          pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
+          row: key.row,
+          col: key.col,
+          width: key.width,
+          height: key.height,
+        });
+        if (key.special === "tape") {
+          this.goalTape.object = newTile.object;
+          this.goalTape.startPos.x = newTile.object.pos.x;
+          this.goalTape.startPos.y = newTile.object.pos.y;
+        }
+        this.tiles.push(newTile);
+
+        if (key.collider) {
+          let newGround = new Shape({
+            x: (i + offset.x) * 32,
+            y: (j + offset.y) * 32,
+            width: 32,
+            height: 32,
+            color: 'rgba(0,0,0,0)'},
+            this.ctx
+          );
+          this.colliders.push(newGround);
+
+        }
+      });
+    });
+    if (main) {
+      this.finishParse();
+    }
+  }
+
+  finishParse() {
+    this.entities.player.colliders,
+    this.entities.player.collision.colliders = this.colliders;
+
+    this.entities.player.enemies = this.entities.enemies,
+    this.entities.player.collision.enemies = this.entities.enemies;
+
+    this.entities.enemies.forEach((entity) => {
+      entity.colliders, entity.collision.colliders = this.colliders;
+    });
+  }
+
+  createEntity(type, x, y) {
+    switch (type) {
+      case 'player':
+        this.entities.player = new Player({x, y, width: 32, height: 56}, [], this.ctx);
+        return;
+      case 'enemy':
+        this.entities.enemies.push(new Galoomba({x, y, width: 32, height: 32}, [], this.ctx));
+        return;
+      default:
+
+    }
+  }
+}
+
+module.exports = Level;
 
 
 /***/ })
