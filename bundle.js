@@ -159,7 +159,7 @@ const Sprite = __webpack_require__(10);
 const Level = __webpack_require__(8);
 
 const playerSquare = {x: 0, y: 200, width: 32, height: 56, color: 'rgba(200,170,255,0)'};
-const redSquare = {x: 400, y: 200, width: 32, height: 32, color: 'rgba(200,170,255,0)'};
+const redSquare = {x: 350, y: 200, width: 32, height: 32, color: 'rgba(200,170,255,0)'};
 
 const util = new Util();
 
@@ -174,7 +174,7 @@ class Game {
   constructor(xDim, yDim) {
     this.xDim = xDim;
     this.yDim = yDim;
-    this.dev = true;
+    this.dev = false;
   }
 
   checkBoundaries() {
@@ -194,12 +194,14 @@ class Game {
 
   moveViewport(ctx, canvasEl, target) {
     let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, (-target.shape.pos.y + canvasEl.height / 2) + 150];
-    offset.x = util.lerp(offset.x, cameraCenter[0], 0.075);
-    offset.y = util.lerp(offset.y, cameraCenter[1], 0.075);
+    if (target.status.alive) {
+      offset.x = util.lerp(offset.x, cameraCenter[0], 0.075);
+      offset.y = util.lerp(offset.y, cameraCenter[1], 0.075);
+    }
     this.checkBoundaries();
 
     //for pixel perfect movement round up or down whatever
-    ctx.setTransform(1, 0, 0, 1, Math.round(offset.x), Math.round(offset.y));
+    ctx.setTransform(1, 0, 0, 1, offset.x, offset.y);
   }
 
   createBackground(player, ctx) {
@@ -265,15 +267,19 @@ class Game {
     const colliders = level.colliders;
     const tiles = level.tiles;
 
-    const player = new Player(playerSquare, colliders, ctx);
+
+    const player = new Player(playerSquare, colliders, ctx, 'assets/images/mario.png');
     let image = new Image();
     image.src = 'assets/images/mario.png';
     let mario = new MarioSprite({ctx: ctx, width: 64, height: 64, image: image, target: player, offset:{x:16, y:8}});
 
-    const enemy = new Galoomba(redSquare, colliders, ctx);
+    const enemy = new Galoomba(redSquare, colliders, ctx, [player]);
     let galoombaImage = new Image();
     galoombaImage.src = 'assets/images/galoomba.png';
     let galoomba = new GaloombaSprite({ctx: ctx, image: galoombaImage, target: enemy, numberOfFrames: 4});
+
+    const enemies = [enemy];
+    player.collision.enemies = enemies;
 
     const songs = this.startAudio();
 
@@ -328,7 +334,7 @@ const SFX = __webpack_require__(11);
 const sfx = new SFX();
 
 class MovingObject {
-  constructor(shapeParameters, colliders, ctx) {
+  constructor(shapeParameters, colliders, ctx, enemies) {
     this.shape = new Shape(shapeParameters, ctx);
     this.vel = {x: 0, y: 0};
     this.input = {x: 0, y: 0, jump: false};
@@ -347,18 +353,20 @@ class MovingObject {
       face: 'right',
       state: 'idle'
     };
+    this.enemies = enemies;
     this.colliders = colliders;
     this.collision = new Collision(this, ctx);
 
-    this.status = {grounded: false, running: false, pMeter: 0, pRun: false};
+    this.status = {grounded: false, running: false, pMeter: 0, pRun: false, alive: true};
   }
 
   update() {
     this.movePos();
     this.calcVel();
     this.shape.render();
-
-    this.collision.collisions();
+    if (this.status.alive) {
+      this.collision.collisions();
+    }
   }
 
   speedType() {
@@ -397,6 +405,10 @@ class MovingObject {
   movePos() {
     this.shape.pos.x += this.vel.x;
     this.shape.pos.y += this.vel.y;
+  }
+
+  die() {
+    this.status.alive = false;
   }
 }
 
@@ -484,6 +496,7 @@ class Collision {
     this.shape = object.shape;
     this.vel = object.vel;
 
+    this.enemies = object.enemies || [];
     this.colliders = object.colliders;
     this.grounded = false;
   }
@@ -522,15 +535,22 @@ class Collision {
 
       let hit = this.raycast(startX, endX, 'horizontal');
       if (hit) {
-
-        if (this.vel.x > 0) {
-          this.shape.pos.x = (hit.collider.calcCenter().x - hit.collider.width / 2) - this.shape.width;
-        } else {
-          this.shape.pos.x = (hit.collider.calcCenter().x + hit.collider.width / 2);
+        if (hit.collider) {
+          this.handleHorizontalCollision(hit);
+        } else if (hit.enemy) {
+          this.object.damage();
         }
-        this.vel.x = 0;
       }
     }
+  }
+
+  handleHorizontalCollision(hit) {
+    if (this.vel.x > 0) {
+      this.shape.pos.x = (hit.collider.calcCenter().x - hit.collider.width / 2) - this.shape.width;
+    } else {
+      this.shape.pos.x = (hit.collider.calcCenter().x + hit.collider.width / 2);
+    }
+    this.vel.x = 0;
   }
 
   verticalCollisions() {
@@ -564,18 +584,36 @@ class Collision {
 
       let hit = this.raycast(startY, endY, 'vertical');
       if (hit) {
-        if (this.vel.y > 0) {
-          this.shape.pos.y = (hit.collider.calcCenter().y - hit.collider.height / 2) - this.shape.height;
+        if (hit.collider) {
+          this.handleVerticalCollision(hit);
         } else {
-          this.shape.pos.y = (hit.collider.calcCenter().y + hit.collider.height / 2);
+          this.handleVerticalCollisionEnemy(hit);
         }
-
         anyCollisions = true;
-        this.vel.y = 0;
       }
     }
 
     return anyCollisions;
+  }
+
+  handleVerticalCollision(hit) {
+    if (this.vel.y > 0) {
+      this.shape.pos.y = (hit.collider.calcCenter().y - hit.collider.height / 2) - this.shape.height;
+    } else {
+      this.shape.pos.y = (hit.collider.calcCenter().y + hit.collider.height / 2);
+    }
+
+    this.vel.y = 0;
+  }
+
+  handleVerticalCollisionEnemy(hit) {
+
+    if (this.vel.y > 0) {
+      hit.enemy.die();
+      this.object.minJump();
+    } else {
+      this.object.damage();
+    }
   }
 
   checkCollision(point, type) {
@@ -597,9 +635,27 @@ class Collision {
     }
   }
 
+  checkCollisionEnemy(point) {
+    for (var i = 0; i < this.enemies.length; i++) {
+      let collider = this.enemies[i].shape;
+      if (point.y > collider.calcCenter().y - (collider.height / 2)
+       && point.y < collider.calcCenter().y + (collider.height / 2)) {
+
+        if (point.x > collider.calcCenter().x - (collider.width / 2)
+         && point.x < collider.calcCenter().x + (collider.width / 2)) {
+
+          return { enemy: this.enemies[i]};
+
+        }
+
+      }
+
+    }
+  }
+
   raycast(start, end, type) {
-    // this.renderRaycast(start, end, 'red');
-    return this.checkCollision(end, type);
+    this.renderRaycast(start, end, 'red');
+    return this.checkCollision(end, type) || this.checkCollisionEnemy(end);
   }
 
   renderRaycast(start, end, color) {
@@ -697,8 +753,8 @@ class Level {
       [__,__,__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,to,to,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,to,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -782,57 +838,11 @@ class AnimatedSprite {
     };
   }
 
-  // parseState() {
-  //   let oldState = this.object.currentState;
-  //   if (this.object.target.animation.face === 'right') {
-  //     this.object.col = 0;
-  //   } else {
-  //     this.object.col = 2;
-  //   }
-  //   switch (this.object.target.animation.state) {
-  //     case 'walk':
-  //       this.object.range = {start: 0, end: 3};
-  //       this.object.ticksPerFrame = 6;
-  //       break;
-  //     case 'idle':
-  //       this.object.range = {start: 0, end: 0};
-  //       break;
-  //     case 'jump':
-  //       this.object.range = {start: 10, end: 10};
-  //       break;
-  //     case 'fall':
-  //       this.object.range = {start: 11, end: 11};
-  //       break;
-  //     case 'skid':
-  //       this.object.range = {start: 6, end: 6};
-  //       break;
-  //     case 'run':
-  //       this.object.range = {start: 3, end: 6};
-  //       this.object.ticksPerFrame = 2;
-  //       break;
-  //     case 'runJump':
-  //       this.object.range = {start: 12, end: 12};
-  //       break;
-  //     case 'duck':
-  //       this.object.range = {start: 9, end: 9};
-  //       break;
-  //     default:
-  //
-  //   }
-  //
-  //   this.object.currentState = this.object.target.animation.state;
-  //
-  //   if (this.object.currentState !== oldState) {
-  //     this.stateChange();
-  //   }
-  // }
-
   stateChange() {
     this.object.row = this.object.range.start;
   }
 
   update() {
-    // this.parseState();
     this.object.tickCount += 1;
 
     if (this.object.tickCount > this.object.ticksPerFrame) {
@@ -846,7 +856,6 @@ class AnimatedSprite {
   }
 
   render() {
-    //assuming 64 x 64 sized sprite
     this.object.ctx.drawImage(
       this.object.image,
       this.object.row * this.object.width,
@@ -930,12 +939,16 @@ const MovingObject = __webpack_require__(4);
 const Input = __webpack_require__(5);
 
 class Player extends MovingObject {
-  constructor(shapeParameters, colliders, ctx) {
-    super(shapeParameters, colliders, ctx);
+  constructor(shapeParameters, colliders, ctx, enemies) {
+    super(shapeParameters, colliders, ctx, enemies);
     this.inputFetcher = new Input();
   }
 
   handleAnimation() {
+    if (!this.status.alive) {
+      this.animation.state = 'die';
+      return;
+    }
     if (this.status.ducking) {
       this.animation.state = 'duck';
     } else {
@@ -1004,10 +1017,23 @@ class Player extends MovingObject {
   }
 
   update(){
-    this.handleInput();
-    this.inputFetcher.update();
+    if (this.status.alive) {
+      this.handleInput();
+      this.inputFetcher.update();
+    }
     this.handleAnimation();
     super.update();
+  }
+
+  damage() {
+    this.die();
+  }
+
+  die() {
+    super.die();
+    this.jump();
+    this.input.x = 0;
+    this.vel.x = 0;
   }
 }
 
@@ -1072,6 +1098,10 @@ class MarioSprite extends AnimatedSprite {
         break;
       case 'duck':
         this.object.range = {start: 9, end: 9};
+        break;
+      case 'die':
+        this.object.range = {start: 13, end: 15};
+        this.object.ticksPerFrame = 4;
         break;
       default:
 
