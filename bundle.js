@@ -153,11 +153,13 @@ const MovingObject = __webpack_require__(4);
 const Player = __webpack_require__(13);
 const Galoomba = __webpack_require__(14);
 const AnimatedSprite = __webpack_require__(9);
+const MarioSprite = __webpack_require__(15);
+const GaloombaSprite = __webpack_require__(16);
 const Sprite = __webpack_require__(10);
 const Level = __webpack_require__(8);
 
 const playerSquare = {x: 0, y: 200, width: 32, height: 56, color: 'rgba(200,170,255,0)'};
-const redSquare = {x: 400, y: 200, width: 32, height: 32, color: 'red'};
+const redSquare = {x: 400, y: 200, width: 32, height: 32, color: 'rgba(200,170,255,0)'};
 
 const util = new Util();
 
@@ -266,12 +268,12 @@ class Game {
     const player = new Player(playerSquare, colliders, ctx);
     let image = new Image();
     image.src = 'assets/images/mario.png';
-    let mario = new AnimatedSprite({ctx: ctx, width: 64, height: 64, image: image, target: player});
+    let mario = new MarioSprite({ctx: ctx, width: 64, height: 64, image: image, target: player, offset:{x:16, y:8}});
 
     const enemy = new Galoomba(redSquare, colliders, ctx);
-    // let galoombaImage = new Image();
-    // galoombaImage.src = 'assets/images/galoomba.png';
-    // let galoomba = new AnimatedSprite({ctx: ctx, image: image, target: enemy});
+    let galoombaImage = new Image();
+    galoombaImage.src = 'assets/images/galoomba.png';
+    let galoomba = new GaloombaSprite({ctx: ctx, image: galoombaImage, target: enemy, numberOfFrames: 4});
 
     const songs = this.startAudio();
 
@@ -287,6 +289,7 @@ class Game {
       mario.update();
 
       enemy.update();
+      galoomba.update();
 
       colliders.forEach((collider) => {
         collider.render(ctx);
@@ -761,74 +764,75 @@ module.exports = Level;
 /***/ (function(module, exports) {
 
 class AnimatedSprite {
-  constructor({ctx, width, height, image, ticksPerFrame, target, state, face}) {
+  constructor({ctx, width, height, image, ticksPerFrame, target, state, face, numberOfFrames, offset}) {
     this.object = {
       ctx,
-      width,
-      height,
+      width: width || 32,
+      height: height || 32,
       image,
       row: 0,
       col: 0,
       tickCount: 0,
       ticksPerFrame: 6,
-      numberOfFrames: 14,
+      numberOfFrames: numberOfFrames || 14,
       range: {start: 0, end: 3},
       target,
-      currentState: 'idle'
+      currentState: 'idle',
+      offset: offset || {x: 0, y: 0}
     };
   }
 
-  parseState() {
-    let oldState = this.object.currentState;
-    if (this.object.target.animation.face === 'right') {
-      this.object.col = 0;
-    } else {
-      this.object.col = 2;
-    }
-    switch (this.object.target.animation.state) {
-      case 'walk':
-        this.object.range = {start: 0, end: 3};
-        this.object.ticksPerFrame = 6;
-        break;
-      case 'idle':
-        this.object.range = {start: 0, end: 0};
-        break;
-      case 'jump':
-        this.object.range = {start: 10, end: 10};
-        break;
-      case 'fall':
-        this.object.range = {start: 11, end: 11};
-        break;
-      case 'skid':
-        this.object.range = {start: 6, end: 6};
-        break;
-      case 'run':
-        this.object.range = {start: 3, end: 6};
-        this.object.ticksPerFrame = 2;
-        break;
-      case 'runJump':
-        this.object.range = {start: 12, end: 12};
-        break;
-      case 'duck':
-        this.object.range = {start: 9, end: 9};
-        break;
-      default:
-
-    }
-
-    this.object.currentState = this.object.target.animation.state;
-
-    if (this.object.currentState !== oldState) {
-      this.stateChange();
-    }
-  }
+  // parseState() {
+  //   let oldState = this.object.currentState;
+  //   if (this.object.target.animation.face === 'right') {
+  //     this.object.col = 0;
+  //   } else {
+  //     this.object.col = 2;
+  //   }
+  //   switch (this.object.target.animation.state) {
+  //     case 'walk':
+  //       this.object.range = {start: 0, end: 3};
+  //       this.object.ticksPerFrame = 6;
+  //       break;
+  //     case 'idle':
+  //       this.object.range = {start: 0, end: 0};
+  //       break;
+  //     case 'jump':
+  //       this.object.range = {start: 10, end: 10};
+  //       break;
+  //     case 'fall':
+  //       this.object.range = {start: 11, end: 11};
+  //       break;
+  //     case 'skid':
+  //       this.object.range = {start: 6, end: 6};
+  //       break;
+  //     case 'run':
+  //       this.object.range = {start: 3, end: 6};
+  //       this.object.ticksPerFrame = 2;
+  //       break;
+  //     case 'runJump':
+  //       this.object.range = {start: 12, end: 12};
+  //       break;
+  //     case 'duck':
+  //       this.object.range = {start: 9, end: 9};
+  //       break;
+  //     default:
+  //
+  //   }
+  //
+  //   this.object.currentState = this.object.target.animation.state;
+  //
+  //   if (this.object.currentState !== oldState) {
+  //     this.stateChange();
+  //   }
+  // }
 
   stateChange() {
     this.object.row = this.object.range.start;
   }
 
   update() {
-    this.parseState();
+    // this.parseState();
     this.object.tickCount += 1;
 
     if (this.object.tickCount > this.object.ticksPerFrame) {
@@ -843,16 +847,14 @@ class AnimatedSprite {
 
   render() {
     //assuming 64 x 64 sized sprite
-
     this.object.ctx.drawImage(
       this.object.image,
-      this.object.row * 64,
-      this.object.col * 64,
+      this.object.row * this.object.width,
+      this.object.col * this.object.height,
       this.object.width,
       this.object.height,
-      this.object.target.shape.pos.x - 16,
-      //vvv This is being subtracted by the white space above mario vvv
-      this.object.target.shape.pos.y - 8,
+      this.object.target.shape.pos.x - this.object.offset.x,
+      this.object.target.shape.pos.y - this.object.offset.y,
       this.object.width,
       this.object.height
     );
@@ -1023,10 +1025,113 @@ class Galoomba extends MovingObject {
     super(shapeParameters, colliders, ctx);
     this.input.x = -1;
     this.stats.walkSpeed = 0.5;
+    this.animation.state = 'walk';
   }
 }
 
 module.exports = Galoomba;
+
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(9);
+
+class MarioSprite extends AnimatedSprite {
+  parseState() {
+    let oldState = this.object.currentState;
+    if (this.object.target.animation.face === 'right') {
+      this.object.col = 0;
+    } else {
+      this.object.col = 2;
+    }
+    switch (this.object.target.animation.state) {
+      case 'walk':
+        this.object.range = {start: 0, end: 3};
+        this.object.ticksPerFrame = 6;
+        break;
+      case 'idle':
+        this.object.range = {start: 0, end: 0};
+        break;
+      case 'jump':
+        this.object.range = {start: 10, end: 10};
+        break;
+      case 'fall':
+        this.object.range = {start: 11, end: 11};
+        break;
+      case 'skid':
+        this.object.range = {start: 6, end: 6};
+        break;
+      case 'run':
+        this.object.range = {start: 3, end: 6};
+        this.object.ticksPerFrame = 2;
+        break;
+      case 'runJump':
+        this.object.range = {start: 12, end: 12};
+        break;
+      case 'duck':
+        this.object.range = {start: 9, end: 9};
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = MarioSprite;
+
+
+/***/ }),
+/* 16 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(9);
+
+class GaloombaSprite extends AnimatedSprite {
+  parseState() {
+    let oldState = this.object.currentState;
+
+    if (this.object.target.animation.face === 'right') {
+      this.object.col = 0;
+    } else {
+      this.object.col = 2;
+    }
+
+    switch (this.object.target.animation.state) {
+      case 'walk':
+        this.object.range = {start: 0, end: 2};
+        this.object.ticksPerFrame = 24;
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = GaloombaSprite;
 
 
 /***/ })
