@@ -629,6 +629,7 @@ class Game {
 
   handlePause(ctx, animateCallback) {
     if (this.pause) {
+
       if (this.input.pausePressed || (this.input.keyPressed && this.gameStart)) {
         this.gameStart = false;
         this.pause = false;
@@ -649,6 +650,24 @@ class Game {
     }
   }
 
+  waitForUser(ctx) {
+    ctx.fillStyle = `rgba(0,0,0,1)`;
+    ctx.fillRect(-offset.x, -offset.y, this.xDim, this.yDim);
+    let image = new Image();
+    image.src = 'assets/images/prompt.png';
+    ctx.drawImage(
+      image,
+      0,
+      0,
+      256,
+      64,
+      -offset.x + (this.xDim / 2) - 96,
+      -offset.y + (this.yDim / 2) - 32,
+      256,
+      64
+    );
+  }
+
   start() {
     const ctx = this.canvasEl.getContext("2d");
 
@@ -658,14 +677,16 @@ class Game {
     this.entities = this.level.entities;
     this.input = this.entities.player.inputFetcher.inputs;
 
-    ctx.fillStyle = `rgba(0,0,0,1)`;
-    ctx.fillRect(-offset.x, -offset.y, this.xDim, this.yDim);
+
     const songs = this.startAudio();
 
     const animateCallback = () => {
 
       this.handlePause(ctx, animateCallback);
       if (this.pause) {
+        if (this.gameStart) {
+          this.waitForUser(ctx);
+        }
         this.req = requestAnimationFrame(animateCallback);
         return;
       }
@@ -779,12 +800,21 @@ class Collision {
 
   parseHorizontalCollision(hit) {
     if (hit.collider) {
-      if (hit.collider.type === "trigger") {
-        this.handleTrigger();
-      } else {
+      switch (hit.collider.type) {
+        case 'block':
         this.handleHorizontalCollision(hit);
+        break;
+        case 'trigger':
+        this.handleTrigger();
+        break;
+        case 'through':
+
+        break;
+        default:
+
       }
-    } else if (hit.enemy) {
+    }
+    if (hit.enemy) {
       this.object.damage();
     }
   }
@@ -836,7 +866,9 @@ class Collision {
       let hit = this.raycast(startY, endY, 'vertical');
       if (hit) {
         this.parseVerticalCollision(hit);
-        anyCollisions = true;
+        if (this.object.vel.y >= 0) {
+          anyCollisions = true;
+        }
       }
     }
 
@@ -845,10 +877,20 @@ class Collision {
 
   parseVerticalCollision(hit) {
     if (hit.collider) {
-      if (hit.collider.type === "trigger") {
-        this.handleTrigger();
-      } else {
-        this.handleVerticalCollision(hit);
+      switch (hit.collider.type) {
+        case 'block':
+          this.handleVerticalCollision(hit);
+          break;
+        case 'trigger':
+          this.handleTrigger();
+          break;
+        case 'through':
+          if (this.object.vel.y > 0) {
+            this.handleVerticalCollision(hit);
+          }
+          break;
+        default:
+
       }
     } else {
       this.handleVerticalCollisionEnemy(hit);
@@ -1134,16 +1176,19 @@ class Level {
       entity: 'kill'
     };
 
-    const tl = { row: 0, col: 0, collider: true};
-    const to = { row: 1, col: 0, collider: true};
-    const tr = { row: 2, col: 0, collider: true};
-    const ml = { row: 0, col: 1, collider: true};
+    const tl = { row: 0, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
+    const to = { row: 1, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
+    const tr = { row: 2, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
+    const ml = { row: 0, col: 1, collider: false};
     const mi = { row: 1, col: 1, collider: false};
-    const mr = { row: 2, col: 1, collider: true};
-    const bl = { row: 0, col: 2, collider: true};
-    const bo = { row: 1, col: 2, collider: true};
-    const br = { row: 2, col: 2, collider: true};
+    const mr = { row: 2, col: 1, collider: false};
+    const bl = { row: 0, col: 2, collider: 'block'};
+    const bo = { row: 1, col: 2, collider: 'block'};
+    const br = { row: 2, col: 2, collider: 'block'};
     const __ = null;
+
+    const wl = { row: 3, col: 1, collider: 'block'};
+    const wr = { row: 5, col: 1, collider: 'block'};
 
     const ch = {
       chunk: [
@@ -1175,15 +1220,15 @@ class Level {
     };
 
     const map = [
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      [__,pl,__,__,__,__,__,__,__,__,__,__,__,en,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,__,__,tl,to,tr,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      [__,pl,__,wl,mi,wr,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
       [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
       [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
@@ -1204,21 +1249,21 @@ class Level {
       image: sheet,
       pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
       row: key.row,
-      col: key.col,
-      width: key.width,
-      height: key.height,
+      col: key.col
     });
 
     return newTile;
   }
 
   createCollider(key, i, j, offset) {
+    const pixelOffset = key.offset || {x: 0, y: 0};
     let newCollider = new Shape({
-      pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
-      width: 32,
-      height: 32,
+      pos: {x: ((i + offset.x) * 32) + pixelOffset.x, y: ((j + offset.y) * 32) + pixelOffset.y},
+      width: key.width || 32,
+      height: key.height || 32,
       color: 'rgba(0,0,0,0)'},
-      this.ctx
+      this.ctx,
+      key.collider
     );
     return newCollider;
   }
@@ -1270,7 +1315,6 @@ class Level {
           this.ParseMap(key.chunk, key.sheet || sheet, {x:i, y:j});
           return;
         }
-
 
         if (key.collider) {
           let newCollider = this.createCollider(key, i, j, offset);
