@@ -41,7 +41,12 @@ header a:hover {
   text-decoration: underline;
 }
 
-header h2 {
+h2 {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -10px;
+  text-align: center;
   font-size: 40px;
   color: white;
 }

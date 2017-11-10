@@ -345,7 +345,7 @@ class Player extends MovingObject {
       }
 
       if (this.collision.grounded) {
-        if (this.vel.x < 0.25 && this.vel.x > -0.5) {
+        if (this.vel.x < 0.25 && this.vel.x > -0.25) {
           this.animation.state = "idle";
         }
         if (this.vel.x > 0.25) {
@@ -664,7 +664,7 @@ class Game {
       0,
       256,
       64,
-      -offset.x + (this.xDim / 2) - 96,
+      -offset.x + (this.xDim / 2) - 128,
       -offset.y + (this.yDim / 2) - 32,
       256,
       64
@@ -899,8 +899,8 @@ class Collision {
         case 'through':
           if (this.object.vel.y > 0) {
             this.handleVerticalCollision(hit);
+            return true;
           }
-          return true;
         default:
 
       }
@@ -1359,7 +1359,7 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,en,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,pl,__,__,co,__,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,pl,__,__,co,__,__,ml,mi,mr,__,__,__,__,co,co,co,co,co,co,co,co,co,co,co,co,co,co,__,__,__],
         [tl,to,we,__,co,__,ww,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
         [ml,mi,wr,__,co,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
         [ml,mi,wr,__,co,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
