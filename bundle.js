@@ -111,9 +111,76 @@ module.exports = Shape;
 
 /***/ }),
 /* 1 */
+/***/ (function(module, exports) {
+
+class AnimatedSprite {
+  constructor({ctx, width, height, image, ticksPerFrame, target, state, face, numberOfFrames, offset, row, col, staticSpeed}) {
+    this.object = {
+      ctx,
+      width: width || 32,
+      height: height || 32,
+      image,
+      row: row || 0,
+      col: col || 0,
+      tickCount: 0,
+      ticksPerFrame: ticksPerFrame || 6,
+      numberOfFrames: numberOfFrames || 14,
+      range: {start: 0, end: 3},
+      target,
+      currentState: 'idle',
+      offset: offset || {x: 0, y: 0},
+      staticSpeed
+    };
+  }
+
+  stateChange() {
+    this.object.row = this.object.range.start;
+  }
+
+  update() {
+    if (!this.object.staticSpeed) {
+      this.object.ticksPerFrame = 16 / Math.abs(this.object.target.vel.x);
+      if (this.object.ticksPerFrame > 16) {
+        this.object.ticksPerFrame = 16;
+      }
+    }
+    this.object.tickCount += 1;
+
+    if (this.object.tickCount > this.object.ticksPerFrame) {
+      this.object.row += 1;
+      this.object.tickCount = 0;
+      if (this.object.row > this.object.range.end - 1) {
+        this.object.row = this.object.range.start;
+      }
+    }
+    this.render();
+  }
+
+  render() {
+    this.object.ctx.drawImage(
+      this.object.image,
+      this.object.row * this.object.width,
+      this.object.col * this.object.height,
+      this.object.width,
+      this.object.height,
+      this.object.target.shape.pos.x - this.object.offset.x,
+      this.object.target.shape.pos.y - this.object.offset.y,
+      this.object.width,
+      this.object.height
+    );
+
+  }
+
+}
+
+module.exports = AnimatedSprite;
+
+
+/***/ }),
+/* 2 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(3);
+const Util = __webpack_require__(4);
 const util = new Util();
 const Shape = __webpack_require__(0);
 
@@ -210,11 +277,11 @@ module.exports = MovingObject;
 
 
 /***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, exports) {
 
-class AnimatedSprite {
-  constructor({ctx, width, height, image, ticksPerFrame, target, state, face, numberOfFrames, offset, row, col, staticSpeed}) {
+class Sprite {
+  constructor({ctx, width, height, image, pos, row, col, special, offset}) {
     this.object = {
       ctx,
       width: width || 32,
@@ -222,62 +289,37 @@ class AnimatedSprite {
       image,
       row: row || 0,
       col: col || 0,
-      tickCount: 0,
-      ticksPerFrame: ticksPerFrame || 6,
-      numberOfFrames: numberOfFrames || 14,
-      range: {start: 0, end: 3},
-      target,
-      currentState: 'idle',
-      offset: offset || {x: 0, y: 0},
-      staticSpeed
+      pos: pos || {x: 0, y: 0},
+      offset: {x: 0, y: 0},
+      special
     };
   }
 
-  stateChange() {
-    this.object.row = this.object.range.start;
-  }
-
   update() {
-    if (!this.object.staticSpeed) {
-      this.object.ticksPerFrame = 16 / Math.abs(this.object.target.vel.x);
-      if (this.object.ticksPerFrame > 16) {
-        this.object.ticksPerFrame = 16;
-      }
-    }
-    this.object.tickCount += 1;
-
-    if (this.object.tickCount > this.object.ticksPerFrame) {
-      this.object.row += 1;
-      this.object.tickCount = 0;
-      if (this.object.row > this.object.range.end - 1) {
-        this.object.row = this.object.range.start;
-      }
-    }
     this.render();
   }
 
   render() {
+    //assuming 32 x 32 sprite
     this.object.ctx.drawImage(
       this.object.image,
-      this.object.row * this.object.width,
-      this.object.col * this.object.height,
+      this.object.row * 32,
+      this.object.col * 32,
       this.object.width,
       this.object.height,
-      this.object.target.shape.pos.x - this.object.offset.x,
-      this.object.target.shape.pos.y - this.object.offset.y,
+      this.object.pos.x - (this.object.width / 2),
+      this.object.pos.y - (this.object.height / 2),
       this.object.width,
       this.object.height
     );
-
   }
-
 }
 
-module.exports = AnimatedSprite;
+module.exports = Sprite;
 
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports) {
 
 const Util = function() {
@@ -298,15 +340,16 @@ module.exports = Util;
 
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const MovingObject = __webpack_require__(1);
+const MovingObject = __webpack_require__(2);
 const Input = __webpack_require__(10);
 const MarioSprite = __webpack_require__(11);
 
 class Player extends MovingObject {
   constructor(shapeParameters, colliders, ctx, enemies) {
+    // shapeParameters.color = 'rgba(255,255,255,0.5)';
     super(shapeParameters, colliders, ctx, enemies);
     this.ctx = ctx;
     this.sprite = this.createSprite();
@@ -316,7 +359,7 @@ class Player extends MovingObject {
   createSprite() {
     let image = new Image();
     image.src = 'assets/images/mario.png';
-    return new MarioSprite({ctx: this.ctx, width: 64, height: 64, image: image, target: this, offset:{x:16, y:8}});
+    return new MarioSprite({ctx: this.ctx, width: 64, height: 64, image: image, target: this, offset:{x:22, y:8}});
   }
 
   handleAnimation() {
@@ -419,48 +462,6 @@ module.exports = Player;
 
 
 /***/ }),
-/* 5 */
-/***/ (function(module, exports) {
-
-class Sprite {
-  constructor({ctx, width, height, image, pos, row, col, special, offset}) {
-    this.object = {
-      ctx,
-      width: width || 32,
-      height: height || 32,
-      image,
-      row: row || 0,
-      col: col || 0,
-      pos: pos || {x: 0, y: 0},
-      offset: {x: 0, y: 0},
-      special
-    };
-  }
-
-  update() {
-    this.render();
-  }
-
-  render() {
-    //assuming 32 x 32 sprite
-    this.object.ctx.drawImage(
-      this.object.image,
-      this.object.row * 32,
-      this.object.col * 32,
-      this.object.width,
-      this.object.height,
-      this.object.pos.x - (this.object.width / 2),
-      this.object.pos.y - (this.object.height / 2),
-      this.object.width,
-      this.object.height
-    );
-  }
-}
-
-module.exports = Sprite;
-
-
-/***/ }),
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -480,14 +481,14 @@ new Game(canvasEl);
 /* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(3);
+const Util = __webpack_require__(4);
 const Shape = __webpack_require__(0);
-const MovingObject = __webpack_require__(1);
-const Player = __webpack_require__(4);
+const MovingObject = __webpack_require__(2);
+const Player = __webpack_require__(5);
 
-const AnimatedSprite = __webpack_require__(2);
-const Sprite = __webpack_require__(5);
-const Level = __webpack_require__(16);
+const AnimatedSprite = __webpack_require__(1);
+const Sprite = __webpack_require__(3);
+const Level = __webpack_require__(12);
 
 const util = new Util();
 
@@ -681,7 +682,7 @@ class Game {
     this.input = this.entities.player.inputFetcher.inputs;
 
 
-    const songs = this.startAudio();
+    // const songs = this.startAudio();
 
     const animateCallback = () => {
 
@@ -693,7 +694,7 @@ class Game {
         this.req = requestAnimationFrame(animateCallback);
         return;
       }
-      this.handleAudio(songs[0], songs[1]);
+      // this.handleAudio(songs[0], songs[1]);
       //clear canvas then render objects
       this.render(ctx);
 
@@ -1084,7 +1085,7 @@ module.exports = Input;
 /* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const AnimatedSprite = __webpack_require__(2);
+const AnimatedSprite = __webpack_require__(1);
 
 class MarioSprite extends AnimatedSprite {
   parseState() {
@@ -1145,147 +1146,10 @@ module.exports = MarioSprite;
 
 
 /***/ }),
-/* 12 */,
-/* 13 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const MovingObject = __webpack_require__(1);
-const GaloombaSprite = __webpack_require__(14);
-
-class Galoomba extends MovingObject {
-  constructor(shapeParameters, colliders, ctx) {
-    super(shapeParameters, colliders, ctx);
-    this.ctx = ctx;
-    this.sprite = this.createSprite();
-    this.input.x = -1;
-    this.stats.walkSpeed = 0.5;
-    this.animation.state = 'walk';
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/galoomba.png';
-    return new GaloombaSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
-  }
-
-  update() {
-    super.update();
-    this.sprite.update();
-  }
-}
-
-module.exports = Galoomba;
-
-
-/***/ }),
-/* 14 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const AnimatedSprite = __webpack_require__(2);
-
-class GaloombaSprite extends AnimatedSprite {
-  parseState() {
-    let oldState = this.object.currentState;
-
-    if (this.object.target.animation.face === 'right') {
-      this.object.col = 0;
-    } else {
-      this.object.col = 2;
-    }
-
-    switch (this.object.target.animation.state) {
-      case 'walk':
-        this.object.range = {start: 0, end: 2};
-        this.object.ticksPerFrame = 24;
-        break;
-      default:
-
-    }
-
-    this.object.currentState = this.object.target.animation.state;
-
-    if (this.object.currentState !== oldState) {
-      this.stateChange();
-    }
-  }
-
-  update() {
-    this.parseState();
-    super.update();
-  }
-}
-
-module.exports = GaloombaSprite;
-
-
-/***/ }),
-/* 15 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(5);
-
-class GoalTape {
-  constructor(pos, ctx) {
-    this.pos = pos;
-    this.startPos = {x: 0, y: 0};
-    this.startPos.x = pos.x;
-    this.startPos.y = pos.y;
-    this.dir = -1;
-
-    this.ctx = ctx;
-    this.collider = this.createCollider();
-    this.sprite = this.createSprite();
-  }
-
-  createCollider() {
-    let newCollider = new Shape({
-      pos: this.pos,
-      width: 32,
-      height: 32,
-      color: 'rgba(0,0,0,0)'},
-      this.ctx,
-      'trigger'
-    );
-    return newCollider;
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/misc_objects.png';
-    return new Sprite({ctx: this.ctx, width: 64, image: image, row: 2, col: 7, pos: this.pos, special: "tape"});
-  }
-
-  moveGoalTape() {
-    let tape = this.collider;
-    if (this.pos.y < this.startPos.y - 256) {
-      this.dir = 1;
-    }
-    if (this.pos.y > this.startPos.y) {
-      this.dir = -1;
-    }
-
-    this.pos.y += 2 * this.dir;
-  }
-
-  update() {
-    this.sprite.update();
-    this.collider.update();
-    this.collider.pos = this.pos;
-    this.moveGoalTape();
-    // this.sprite.object.pos.y -= 2;
-  }
-
-}
-
-module.exports = GoalTape;
-
-
-/***/ }),
-/* 16 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const LevelCreator = __webpack_require__(17);
+const LevelCreator = __webpack_require__(13);
 
 class Level1 extends LevelCreator {
   constructor(ctx) {
@@ -1356,7 +1220,7 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,ib,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,en,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,pl,__,__,co,__,__,ml,mi,mr,__,__,__,__,co,co,co,co,co,co,co,co,co,co,co,co,co,co,__,__,__],
@@ -1380,15 +1244,16 @@ module.exports = Level1;
 
 
 /***/ }),
-/* 17 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(5);
-const Coin = __webpack_require__(19);
-const Player = __webpack_require__(4);
-const Galoomba = __webpack_require__(13);
-const GoalTape = __webpack_require__(15);
+const Sprite = __webpack_require__(3);
+const Coin = __webpack_require__(14);
+const ItemBlock = __webpack_require__(16);
+const Player = __webpack_require__(5);
+const Galoomba = __webpack_require__(18);
+const GoalTape = __webpack_require__(20);
 
 class Level {
   constructor(ctx) {
@@ -1461,8 +1326,8 @@ class Level {
       ],
       sheet: objectSheet
     };
+    const ib = { row: 0, col: 2, collider: 'block', sheet: objectSheet, entity: 'itemBlock'};
 
-    const ib = { row: 0, col: 2, collider: 'block', sheet: objectSheet, entity: 'item'};
     const co = { row: 0, col: 4, collider: false, sheet: objectSheet, entity: 'coin'};
 
     return {
@@ -1510,12 +1375,17 @@ class Level {
   createEntity(type, x, y) {
     switch (type) {
       case 'player':
-        this.entities.player = new Player({pos: {x, y}, width: 32, height: 56}, [], this.ctx);
+        this.entities.player = new Player({pos: {x, y}, width: 20, height: 56}, [], this.ctx);
         return;
       case 'coin':
         const coin = new Coin({ctx: this.ctx, pos: {x, y}});
         this.entities.items.push(coin);
         this.colliders.push(coin.shape);
+        return;
+      case 'itemBlock':
+        const itemBlock = new ItemBlock({ctx: this.ctx, pos: {x, y}});
+        this.entities.items.push(itemBlock);
+        this.colliders.push(itemBlock.shape);
         return;
       case 'enemy':
         this.entities.enemies.push(new Galoomba({pos: {x, y}, width: 32, height: 32}, [], this.ctx));
@@ -1592,10 +1462,47 @@ module.exports = Level;
 
 
 /***/ }),
-/* 18 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const AnimatedSprite = __webpack_require__(2);
+const Shape = __webpack_require__(0);
+const CoinSprite = __webpack_require__(15);
+
+class Coin {
+  constructor({ctx, pos}) {
+    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'coin', this);
+    this.vel = {x: 1, y: 1};
+
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
+
+    this.animation = {state: 'idle'};
+    this.status = {remove: false};
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    return new CoinSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
+  }
+
+  update() {
+    this.sprite.update();
+  }
+
+  die() {
+    this.status.remove = true;
+  }
+}
+
+module.exports = Coin;
+
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(1);
 
 class CoinSprite extends AnimatedSprite {
 
@@ -1637,15 +1544,15 @@ module.exports = CoinSprite;
 
 
 /***/ }),
-/* 19 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const CoinSprite = __webpack_require__(18);
+const ItemBlockSprite = __webpack_require__(17);
 
-class Coin {
+class ItemBlock {
   constructor({ctx, pos}) {
-    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'coin', this);
+    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'block', this);
     this.vel = {x: 1, y: 1};
 
     this.ctx = ctx;
@@ -1658,7 +1565,7 @@ class Coin {
   createSprite() {
     let image = new Image();
     image.src = 'assets/images/misc_objects.png';
-    return new CoinSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
+    return new ItemBlockSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
   }
 
   update() {
@@ -1670,7 +1577,188 @@ class Coin {
   }
 }
 
-module.exports = Coin;
+module.exports = ItemBlock;
+
+
+/***/ }),
+/* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(1);
+
+class ItemBlockSprite extends AnimatedSprite {
+
+  constructor(params) {
+    const image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    params.image = image;
+    params.col = 3;
+    params.ticksPerFrame = 12;
+    params.offset = {x: 0, y: 0};
+    params.staticSpeed = true;
+    super(params);
+  }
+  parseState() {
+    let oldState = this.object.currentState;
+
+    switch (this.object.target.animation.state) {
+      case 'idle':
+        this.object.range = {start: 0, end: 3};
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = ItemBlockSprite;
+
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const MovingObject = __webpack_require__(2);
+const GaloombaSprite = __webpack_require__(19);
+
+class Galoomba extends MovingObject {
+  constructor(shapeParameters, colliders, ctx) {
+    super(shapeParameters, colliders, ctx);
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
+    this.input.x = -1;
+    this.stats.walkSpeed = 0.5;
+    this.animation.state = 'walk';
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/galoomba.png';
+    return new GaloombaSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
+  }
+
+  update() {
+    super.update();
+    this.sprite.update();
+  }
+}
+
+module.exports = Galoomba;
+
+
+/***/ }),
+/* 19 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(1);
+
+class GaloombaSprite extends AnimatedSprite {
+  parseState() {
+    let oldState = this.object.currentState;
+
+    if (this.object.target.animation.face === 'right') {
+      this.object.col = 0;
+    } else {
+      this.object.col = 2;
+    }
+
+    switch (this.object.target.animation.state) {
+      case 'walk':
+        this.object.range = {start: 0, end: 2};
+        this.object.ticksPerFrame = 24;
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = GaloombaSprite;
+
+
+/***/ }),
+/* 20 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const Sprite = __webpack_require__(3);
+
+class GoalTape {
+  constructor(pos, ctx) {
+    this.pos = pos;
+    this.startPos = {x: 0, y: 0};
+    this.startPos.x = pos.x;
+    this.startPos.y = pos.y;
+    this.dir = -1;
+
+    this.ctx = ctx;
+    this.collider = this.createCollider();
+    this.sprite = this.createSprite();
+  }
+
+  createCollider() {
+    let newCollider = new Shape({
+      pos: this.pos,
+      width: 32,
+      height: 32,
+      color: 'rgba(0,0,0,0)'},
+      this.ctx,
+      'trigger'
+    );
+    return newCollider;
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    return new Sprite({ctx: this.ctx, width: 64, image: image, row: 2, col: 7, pos: this.pos, special: "tape"});
+  }
+
+  moveGoalTape() {
+    let tape = this.collider;
+    if (this.pos.y < this.startPos.y - 256) {
+      this.dir = 1;
+    }
+    if (this.pos.y > this.startPos.y) {
+      this.dir = -1;
+    }
+
+    this.pos.y += 2 * this.dir;
+  }
+
+  update() {
+    this.sprite.update();
+    this.collider.update();
+    this.collider.pos = this.pos;
+    this.moveGoalTape();
+    // this.sprite.object.pos.y -= 2;
+  }
+
+}
+
+module.exports = GoalTape;
 
 
 /***/ })

@@ -7,6 +7,10 @@ TO RUN:
 
 GAME:
 -General:
+  -Item block
+  -Complete level
+  -Proper level end
+
   -Clean up util
   -Framerate independent?
   -colored raycasts
