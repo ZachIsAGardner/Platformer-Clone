@@ -498,7 +498,7 @@ class Player extends MovingObject {
     }, 6853);
     setTimeout(() => {
       this.input.x = 0.325;
-    }, 7853);
+    }, 8853);
   }
 
   die() {
@@ -526,13 +526,14 @@ module.exports = Player;
 const Game = __webpack_require__(7);
 
 const canvasEl = document.getElementsByTagName("canvas")[0];
+const volume = document.getElementById('volume');
 
 // canvasEl.width = window.innerWidth;
 // canvasEl.height = window.innerHeight;
 canvasEl.width = 768;
 canvasEl.height = 588;
 
-new Game(canvasEl);
+new Game(canvasEl, volume);
 
 
 /***/ }),
@@ -559,12 +560,13 @@ var border = {
 };
 
 class Game {
-  constructor(canvasEl) {
+  constructor(canvasEl, volume) {
     this.canvasEl = canvasEl;
+    this.volume = volume;
     this.xDim = this.canvasEl.width;
     this.yDim = this.canvasEl.height;
     this.req = null;
-    this.dev = false;
+    this.dev = true;
     this.pause = true;
 
     this.songs = [];
@@ -679,11 +681,7 @@ class Game {
   handleAudio() {
     const audioIntro = this.songs[0];
     const audioMain = this.songs[1];
-    if (this.dev) {
-      this.songs.forEach((song) => {
-        song.volume = 0;
-      });
-    }
+
     if (this.currentSong.currentTime >= this.currentSong.duration  -0.075) {
       if (this.songs[0].src === this.currentSong.src || this.songs[1].src === this.currentSong.src) {
         this.changeSong(this.songs[1], true);
@@ -781,10 +779,7 @@ class Game {
 
   beginEndLevel(ctx) {
     this.levelEnded = true;
-    this.pauseAudio();
-    var courseClearFanfare = new Audio('assets/audio/music/course_clear_fanfare.wav');
-    courseClearFanfare.play();
-    this.songs.push(courseClearFanfare);
+    this.changeSong(this.songs[3]);
     setTimeout(() => {
       this.createImage(ctx);
       border.x.max = -offset.x + this.xDim;
@@ -840,8 +835,13 @@ class Game {
         this.req = requestAnimationFrame(animateCallback);
         return;
       }
+
+      this.currentSong.volume = (this.volume.className === "active") ? 1 : 0;
+      this.songs.forEach((song) => {
+        song.volume = (this.volume.className === "active") ? 1 : 0;
+      });
       this.handleAudio(this.songs[0], this.songs[1]);
-      //clear canvas then render objects
+
       this.render(ctx);
 
       this.moveViewport(ctx, this.canvasEl, this.entities.player);
@@ -1163,8 +1163,12 @@ module.exports = Collision;
 class SFX {
   constructor() {
     const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
+    const coin = new Audio ("assets/audio/sfx/smw_coin.wav");
+    const stomp = new Audio ("assets/audio/sfx/smw_stomp.wav");
     this.sounds = {
-      jump
+      jump,
+      coin,
+      stomp
     };
   }
 }
@@ -1198,27 +1202,27 @@ const Input = function (entity) {
   };
 
   window.onmousedown = (e) => {
-    inputs.keyPressed = true;
+    // inputs.keyPressed = true;
   };
 
   window.onkeydown = (e) => {
-    if (e.keyCode === 74 && inputs.jumpFresh) {
+    if (e.keyCode === 87 || e.keyCode === 38) {
+      inputs.upHeld = true;
+    }
+    if (e.keyCode === 83 || e.keyCode === 40) {
+      inputs.downHeld = true;
+    }
+    if(e.keyCode === 65 || e.keyCode === 37) {
+      inputs.leftHeld = true;
+    } else if(e.keyCode === 68 || e.keyCode === 39) {
+      inputs.rightHeld = true;
+    }
+
+    if ((e.keyCode === 74 || e.keyCode === 90) && inputs.jumpFresh ) {
       inputs.jumpPressed = true;
       inputs.jumpFresh = false;
     }
-    if (e.keyCode === 83) {
-      inputs.downHeld = true;
-    }
-    if (e.keyCode === 87) {
-      inputs.upHeld = true;
-    }
-    if(e.keyCode === 65) {
-      inputs.leftHeld = true;
-    } else if(e.keyCode === 68) {
-      inputs.rightHeld = true;
-    }
-    //j
-    if (e.keyCode === 75) {
+    if (e.keyCode === 75 || e.keyCode === 88) {
       inputs.runHeld = true;
     }
     //p
@@ -1230,24 +1234,24 @@ const Input = function (entity) {
   };
 
   window.onkeyup = (e) => {
-    if (e.keyCode === 65) {
+    if (e.keyCode === 87 || e.keyCode === 38) {
+      inputs.upHeld = false;
+    }
+    if (e.keyCode === 83 || e.keyCode === 40) {
+      inputs.downHeld = false;
+    }
+    if (e.keyCode === 65 || e.keyCode === 37) {
       inputs.leftHeld = false;
     }
-    if (e.keyCode === 68) {
+    if (e.keyCode === 68 || e.keyCode === 39) {
       inputs.rightHeld = false;
     }
-    if (e.keyCode === 74) {
+
+    if (e.keyCode === 74 || e.keyCode === 90) {
       inputs.jumpReleased = true;
       inputs.jumpFresh = true;
     }
-    if (e.keyCode === 83) {
-      inputs.downHeld = false;
-    }
-    if (e.keyCode === 87) {
-      inputs.upHeld = false;
-    }
-    //j
-    if (e.keyCode === 75) {
+    if (e.keyCode === 75 || e.keyCode === 88) {
       inputs.runHeld = false;
     }
   };
@@ -1400,7 +1404,7 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -1670,6 +1674,8 @@ module.exports = Level;
 
 const Shape = __webpack_require__(0);
 const CoinSprite = __webpack_require__(15);
+const SFX = __webpack_require__(9);
+const sfx = new SFX();
 
 class Coin {
   constructor({ctx, pos}) {
@@ -1694,6 +1700,7 @@ class Coin {
   }
 
   die() {
+    sfx.sounds.coin.play();
     this.status.remove = true;
   }
 }
@@ -1835,6 +1842,8 @@ module.exports = ItemBlockSprite;
 const Shape = __webpack_require__(0);
 const MovingObject = __webpack_require__(2);
 const GaloombaSprite = __webpack_require__(19);
+const SFX = __webpack_require__(9);
+const sfx = new SFX();
 
 class Galoomba extends MovingObject {
   constructor(shapeParameters, colliders, ctx) {
@@ -1879,6 +1888,7 @@ class Galoomba extends MovingObject {
 
   die() {
     //re add trigger on death
+    sfx.sounds.stomp.play();
     super.die();
   }
 }

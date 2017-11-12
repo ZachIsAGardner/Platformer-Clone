@@ -6,13 +6,17 @@
     <link href="https://fonts.googleapis.com/css?family=Barlow" rel="stylesheet">
     <title>Super Mario World Clone</title>
     <link rel="icon" href="mario-icon.png">
+    <script type="text/javascript">
+      function testClick(el) {
+        el.className = (el.className === "active") ? "" : "active";
+      }
+    </script>
   </head>
   <body>
     <main>
-      <h2>Super Mario World Clone</h2>
       <header>
-        <a href="http://zachisagardner.com/">Zachary Gardner</a>
-
+        <a href="http://zachisagardner.com/" class="name">Zachary Gardner</a>
+        <h2>Super Mario World Clone</h2>
         <ul>
           <li><a href="https://github.com/ZachIsAGardner">
             <img src="assets/images/github.png" alt="github">
@@ -28,9 +32,20 @@
       </header>
       <canvas id="canvas"></canvas>
       <div class="info">
-
+        <img id="info" src="assets/images/info.png" alt="info" onclick="testClick(document.getElementById('info-modal'))">
+        <img id="volume" src="assets/images/volume.png" alt="volume" onclick="testClick(this)">
       </div>
+      <section id="info-modal">
+        <div>
+          <h2>Info</h2>
+          <h3>Controls</h3>
+          <p><strong>WASD / Arrows:</strong> movement</p>
+          <p><strong>J / Z:</strong> jump</p>
+          <p><strong>K / X:</strong> run</p>
+        </div>
+      </section>
     </main>
+
     <script src="bundle.js"></script>
   </body>
 </html>
