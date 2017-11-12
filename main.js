@@ -4,7 +4,7 @@ const canvasEl = document.getElementsByTagName("canvas")[0];
 
 // canvasEl.width = window.innerWidth;
 // canvasEl.height = window.innerHeight;
-canvasEl.width = 1280;
-canvasEl.height = 720;
+canvasEl.width = 768;
+canvasEl.height = 588;
 
 new Game(canvasEl);

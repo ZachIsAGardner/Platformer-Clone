@@ -177,106 +177,7 @@ module.exports = AnimatedSprite;
 
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Util = __webpack_require__(4);
-const util = new Util();
-const Shape = __webpack_require__(0);
-
-const Collision = __webpack_require__(8);
-const SFX = __webpack_require__(9);
-const sfx = new SFX();
-
-class MovingObject {
-  constructor(shapeParameters, colliders, ctx, enemies) {
-    this.shape = new Shape(shapeParameters, ctx);
-    this.vel = {x: 0, y: 0};
-    this.input = {x: 0, y: 0, jump: false};
-
-    this.stats = {
-      walkSpeed: 3.05,
-      runSpeed: 5.05,
-      pSpeed: 7.25,
-      groundAcc: 0.0525,
-      airAcc: 0.035,
-      minJump: -4.75,
-      jump: -8.45,
-      grav: 0.2625
-    };
-    this.animation = {
-      face: 'right',
-      state: 'idle'
-    };
-    this.enemies = enemies;
-    this.colliders = colliders;
-    this.collision = new Collision(this, ctx);
-
-    this.status = {grounded: false, running: false, pMeter: 0, pRun: false, alive: true, remove: false};
-  }
-
-  update() {
-    this.movePos();
-    this.calcVel();
-    this.shape.render();
-    if (this.status.alive) {
-      this.collision.collisions();
-    }
-  }
-
-  speedType() {
-    if (this.collision.grounded && this.status.ducking) {
-      this.status.pMeter = 0;
-      return 0;
-    }
-    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running && this.collision.grounded) {
-      this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
-    } else if (this.collision.grounded){
-      this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
-    }
-    if (this.status.pMeter > 0.9) {
-      this.status.pRun = true;
-      return this.stats.pSpeed;
-    } else {
-      this.status.pRun = false;
-      return (this.status.running) ? this.stats.runSpeed : this.stats.walkSpeed;
-    }
-  }
-
-  calcVel() {
-    let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
-    let speed = this.speedType();
-    this.vel.x = util.lerp(this.vel.x, (this.input.x * speed), acc);
-    this.vel.y += this.stats.grav;
-  }
-
-  minJump() {
-    this.vel.y = this.stats.minJump;
-  }
-  jump() {
-    this.vel.y = this.stats.jump;
-  }
-
-  movePos() {
-    this.shape.pos.x += this.vel.x;
-    this.shape.pos.y += this.vel.y;
-  }
-
-  die() {
-    this.status.alive = false;
-    setTimeout(() => this.remove(), 1250);
-  }
-
-  remove() {
-    this.status.remove = true;
-  }
-
-}
-
-module.exports = MovingObject;
-
-
-/***/ }),
+/* 2 */,
 /* 3 */
 /***/ (function(module, exports) {
 
@@ -340,128 +241,7 @@ module.exports = Util;
 
 
 /***/ }),
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const MovingObject = __webpack_require__(2);
-const Input = __webpack_require__(10);
-const MarioSprite = __webpack_require__(11);
-
-class Player extends MovingObject {
-  constructor(shapeParameters, colliders, ctx, enemies) {
-    // shapeParameters.color = 'rgba(255,255,255,0.5)';
-    super(shapeParameters, colliders, ctx, enemies);
-    this.ctx = ctx;
-    this.sprite = this.createSprite();
-    this.inputFetcher = new Input();
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/mario.png';
-    return new MarioSprite({ctx: this.ctx, width: 64, height: 64, image: image, target: this, offset:{x:22, y:8}});
-  }
-
-  handleAnimation() {
-    if (!this.status.alive) {
-      this.animation.state = 'die';
-      return;
-    }
-    if (this.status.ducking) {
-      this.animation.state = 'duck';
-    } else {
-      if (this.input.x < -0) {
-        this.animation.face = "left";
-      } else if (this.input.x > 0) {
-        this.animation.face = "right";
-      }
-      if (!this.collision.grounded) {
-        if (this.status.pRun) {
-          this.animation.state = "runJump";
-        } else {
-          if (this.vel.y > 0) {
-            this.animation.state = "fall";
-          } else {
-            this.animation.state = "jump";
-          }
-        }
-      }
-
-      if (this.collision.grounded) {
-        if (this.vel.x < 0.25 && this.vel.x > -0.25) {
-          this.animation.state = "idle";
-        }
-        if (this.vel.x > 0.25) {
-          this.animation.state = (!this.status.pRun) ? "walk" : "run";
-        }
-        if (this.vel.x < -0.25) {
-          this.animation.state = (!this.status.pRun) ? "walk" : "run";
-        }
-        if (this.vel.x < -0.25 && this.input.x > 0
-          || this.vel.x > 0.25 && this.input.x < 0) {
-            this.animation.state = "skid";
-        }
-      }
-    }
-  }
-
-  handleInput() {
-    if (!this.inputFetcher.inputs.leftHeld
-      && !this.inputFetcher.inputs.rightHeld) {
-      this.input.x = 0;
-    }
-    if (this.inputFetcher.inputs.leftHeld
-      && !this.inputFetcher.inputs.rightHeld) {
-      this.input.x = -1;
-    }
-    if (!this.inputFetcher.inputs.leftHeld
-      && this.inputFetcher.inputs.rightHeld) {
-      this.input.x = 1;
-    }
-    if (this.inputFetcher.inputs.jumpPressed
-      && this.collision.grounded) {
-      this.jump();
-      // sfx.sounds.jump.play();
-    }
-    if (this.inputFetcher.inputs.jumpReleased
-      && this.vel.y < this.stats.minJump
-      && !this.collision.grounded) {
-      this.minJump();
-    }
-    this.status.running = this.inputFetcher.inputs.runHeld;
-    if (this.collision.grounded) {
-      this.status.ducking = this.inputFetcher.inputs.downHeld;
-    }
-  }
-
-  update(){
-    if (this.status.alive) {
-      this.handleInput();
-      this.inputFetcher.update();
-    }
-    this.sprite.update();
-    this.handleAnimation();
-    super.update();
-  }
-
-  damage() {
-    this.die();
-  }
-
-  die() {
-    if (this.status.alive) {
-      super.die();
-      this.jump();
-      this.input.x = 0;
-      this.vel.x = 0;
-    }
-  }
-}
-
-module.exports = Player;
-
-
-/***/ }),
+/* 5 */,
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -471,8 +251,8 @@ const canvasEl = document.getElementsByTagName("canvas")[0];
 
 // canvasEl.width = window.innerWidth;
 // canvasEl.height = window.innerHeight;
-canvasEl.width = 1280;
-canvasEl.height = 720;
+canvasEl.width = 768;
+canvasEl.height = 588;
 
 new Game(canvasEl);
 
@@ -483,8 +263,9 @@ new Game(canvasEl);
 
 const Util = __webpack_require__(4);
 const Shape = __webpack_require__(0);
-const MovingObject = __webpack_require__(2);
-const Player = __webpack_require__(5);
+
+const MovingObject = __webpack_require__(21);
+const Player = __webpack_require__(23);
 
 const AnimatedSprite = __webpack_require__(1);
 const Sprite = __webpack_require__(3);
@@ -496,7 +277,7 @@ const util = new Util();
 
 var offset = {x: 0, y: 0};
 var border = {
-  x: {min: -16, max: 10000}, y: {min: -512, max: 456}
+  x: {min: -16, max: 10000}, y: {min: -512, max: 356}
 };
 
 class Game {
@@ -681,7 +462,6 @@ class Game {
     this.entities = this.level.entities;
     this.input = this.entities.player.inputFetcher.inputs;
 
-
     // const songs = this.startAudio();
 
     const animateCallback = () => {
@@ -746,7 +526,802 @@ module.exports = Game;
 
 
 /***/ }),
-/* 8 */
+/* 8 */,
+/* 9 */
+/***/ (function(module, exports) {
+
+class SFX {
+  constructor() {
+    const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
+    this.sounds = {
+      jump
+    };
+  }
+}
+
+module.exports = SFX;
+
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports) {
+
+const Input = function (entity) {
+
+  let inputs = {
+    leftHeld: false,
+    rightHeld: false,
+    jumpPressed: false,
+    jumpReleased: false,
+    jumpFresh: true,
+    runHeld: false,
+    downHeld: false,
+    upHeld: false,
+    keyPressed: false,
+    pausePressed: false
+  };
+
+  const update = () => {
+    inputs.jumpReleased = false;
+    inputs.jumpPressed = false;
+    inputs.keyPressed = false;
+  };
+
+  window.onkeydown = (e) => {
+    if (e.keyCode === 74 && inputs.jumpFresh) {
+      inputs.jumpPressed = true;
+      inputs.jumpFresh = false;
+    }
+    if (e.keyCode === 83) {
+      inputs.downHeld = true;
+    }
+    if (e.keyCode === 87) {
+      inputs.upHeld = true;
+    }
+    if(e.keyCode === 65) {
+      inputs.leftHeld = true;
+    } else if(e.keyCode === 68) {
+      inputs.rightHeld = true;
+    }
+    //j
+    if (e.keyCode === 75) {
+      inputs.runHeld = true;
+    }
+    //p
+    if (e.keyCode === 80) {
+      inputs.pausePressed = true;
+    }
+
+    inputs.keyPressed = true;
+  };
+
+  window.onkeyup = (e) => {
+    if (e.keyCode === 65) {
+      inputs.leftHeld = false;
+    }
+    if (e.keyCode === 68) {
+      inputs.rightHeld = false;
+    }
+    if (e.keyCode === 74) {
+      inputs.jumpReleased = true;
+      inputs.jumpFresh = true;
+    }
+    if (e.keyCode === 83) {
+      inputs.downHeld = false;
+    }
+    if (e.keyCode === 87) {
+      inputs.upHeld = false;
+    }
+    //j
+    if (e.keyCode === 75) {
+      inputs.runHeld = false;
+    }
+  };
+
+  return {inputs, update};
+};
+
+module.exports = Input;
+
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(1);
+
+class MarioSprite extends AnimatedSprite {
+  parseState() {
+    let oldState = this.object.currentState;
+    if (this.object.target.animation.face === 'right') {
+      this.object.col = 0;
+    } else {
+      this.object.col = 2;
+    }
+    switch (this.object.target.animation.state) {
+      case 'walk':
+        this.object.range = {start: 0, end: 3};
+        break;
+      case 'idle':
+        this.object.range = {start: 0, end: 0};
+        break;
+      case 'jump':
+        this.object.range = {start: 10, end: 10};
+        break;
+      case 'fall':
+        this.object.range = {start: 11, end: 11};
+        break;
+      case 'skid':
+        this.object.range = {start: 6, end: 6};
+        break;
+      case 'run':
+        this.object.range = {start: 3, end: 6};
+        break;
+      case 'runJump':
+        this.object.range = {start: 12, end: 12};
+        break;
+      case 'duck':
+        this.object.range = {start: 9, end: 9};
+        break;
+      case 'lookUp':
+        this.object.range = {start: 8, end: 8};
+        break;
+      case 'die':
+        this.object.range = {start: 13, end: 15};
+        this.object.col = 0;
+        this.object.ticksPerFrame = 4;
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = MarioSprite;
+
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const LevelCreator = __webpack_require__(13);
+
+class Level1 extends LevelCreator {
+  constructor(ctx) {
+    super(ctx);
+    this.createLevel(this.mapLevel());
+  }
+
+  mapLevel() {
+
+    //get keys
+    let { pl, en, ki, tl, to, tr, ml, mi,
+          mr, bl, bo, br, __, ww, we, wl,
+          wr, ch, bt, bm, ft, fm, tt, go,
+          gg, ib, co
+        } = this.getKeys();
+
+    const tw = {
+      chunk: [
+        [tl,to,tr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+      ]
+    };
+
+    const m3 = {
+      chunk: [
+        [__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,ww,to,we,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,wl,mi,wr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      ]
+    };
+
+    const m2 = {
+      chunk: [
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m3],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,en,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      ]
+    };
+
+    const m1 = {
+      chunk: [
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,ib,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,ml,mi,mr,tl,to,to,to,to,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,pl,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,en,__,__,__,__,__],
+        [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,we,__],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [ki,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      ]
+    };
+
+    return m1;
+  }
+}
+
+module.exports = Level1;
+
+
+/***/ }),
+/* 13 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const Sprite = __webpack_require__(3);
+
+const Coin = __webpack_require__(24);
+const ItemBlock = __webpack_require__(25);
+const Player = __webpack_require__(23);
+const Galoomba = __webpack_require__(26);
+const GoalTape = __webpack_require__(20);
+
+class Level {
+  constructor(ctx) {
+    this.ctx = ctx;
+    this.colliders = [];
+    this.tiles = [];
+    this.entities = {player: null, enemies: [], items: []};
+  }
+
+  getKeys() {
+    let objectSheet = new Image();
+    objectSheet.src = 'assets/images/misc_objects.png';
+
+    const pl = {
+      entity: 'player'
+    };
+    const en = {
+      entity: 'enemy'
+    };
+
+    const ki = {
+      entity: 'kill'
+    };
+
+    //main ground tiles
+    const tl = { row: 0, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
+    const to = { row: 1, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
+    const tr = { row: 2, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
+    const ml = { row: 0, col: 1, collider: false};
+    const mi = { row: 1, col: 1, collider: false};
+    const mr = { row: 2, col: 1, collider: false};
+    const bl = { row: 0, col: 2, collider: 'block'};
+    const bo = { row: 1, col: 2, collider: 'block'};
+    const br = { row: 2, col: 2, collider: 'block'};
+    const __ = null;
+
+    //walls and and corners
+    const ww = { row: 3, col: 0, collider: 'block'};
+    const we = { row: 5, col: 0, collider: 'block'};
+    const wl = { row: 3, col: 1, collider: 'block'};
+    const wr = { row: 5, col: 1, collider: 'block'};
+
+    //3 x 3 chunk
+    const ch = {
+      chunk: [
+        [tl,to,tr],
+        [ml,mi,mr],
+        [bl,bo,br],
+      ]
+    };
+
+    //goal gate
+    const bt = { row: 0, col: 7, collider: false};
+    const bm = { row: 0, col: 8, collider: false};
+    const ft = { row: 1, col: 7, collider: false};
+    const fm = { row: 1, col: 8, collider: false};
+    const tt = { row: 2, col: 7, collider: 'trigger', width: 64, entity: 'tape'};
+    const go = {entity: 'goal'};
+    const gg = {
+      chunk: [
+        [bt,__,ft,go,__],
+        [bm,__,fm,__,__],
+        [bm,__,fm,__,__],
+        [bm,__,fm,__,__],
+        [bm,__,fm,__,__],
+        [bm,__,fm,__,__],
+        [bm,__,fm,__,__],
+        [bm,__,fm,__,__],
+        [bm,tt,fm,__,__],
+      ],
+      sheet: objectSheet
+    };
+    const ib = { row: 0, col: 2, collider: 'block', sheet: objectSheet, entity: 'itemBlock'};
+
+    const co = { row: 0, col: 4, collider: false, sheet: objectSheet, entity: 'coin'};
+
+    return {
+      pl, en, ki, tl, to, tr, ml, mi,
+      mr, bl, bo, br, __, ww, we, wl,
+      wr, ch, bt, bm, ft, fm, tt, go,
+      gg, ib, co
+    };
+  }
+
+  createLevel(level) {
+    let groundSheet = new Image();
+    groundSheet.src = 'assets/images/ground_tiles.png';
+
+    const map = [[level]];
+
+    this.ParseMap(map, groundSheet, {x:0, y: 0}, true);
+  }
+
+  createTile(key, sheet, i, j, offset) {
+    let newTile = new Sprite({
+      ctx: this.ctx,
+      image: key.sheet || sheet,
+      pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
+      row: key.row,
+      col: key.col
+    });
+
+    return newTile;
+  }
+
+  createCollider(key, i, j, offset) {
+    const pixelOffset = key.offset || {x: 0, y: 0};
+    let newCollider = new Shape({
+      pos: {x: ((i + offset.x) * 32) + pixelOffset.x, y: ((j + offset.y) * 32) + pixelOffset.y},
+      width: key.width || 32,
+      height: key.height || 32,
+      color: 'rgba(0,0,0,0)'},
+      this.ctx,
+      key.collider
+    );
+    return newCollider;
+  }
+
+  createEntity(type, x, y) {
+    switch (type) {
+      case 'player':
+        this.entities.player = new Player({pos: {x, y}, width: 20, height: 56}, [], this.ctx);
+        return;
+      case 'coin':
+        const coin = new Coin({ctx: this.ctx, pos: {x, y}});
+        this.entities.items.push(coin);
+        this.colliders.push(coin.shape);
+        return;
+      case 'itemBlock':
+        const itemBlock = new ItemBlock({ctx: this.ctx, pos: {x, y}});
+        this.entities.items.push(itemBlock);
+        this.colliders.push(itemBlock.shape);
+        return;
+      case 'enemy':
+        this.entities.enemies.push(new Galoomba({pos: {x, y}, width: 32, height: 32}, [], this.ctx));
+        return;
+      case 'tape':
+        const tape = new GoalTape({x, y}, this.ctx);
+        this.tiles.push(tape);
+        this.colliders.push(tape.collider);
+        return;
+      case 'goal':
+        let newCollider = new Shape({
+          pos: {x, y},
+          width: 32,
+          height: 1028,
+          color: 'rgba(0,0,0,0)'},
+          this.ctx,
+          'trigger'
+        );
+        this.colliders.push(newCollider);
+        return;
+      case 'kill':
+        this.colliders.push(new Shape({pos: {x, y}, width: 10000, height: 32}, this.ctx, 'kill'));
+        return;
+      default:
+
+    }
+  }
+
+  ParseMap(map, sheet, offset={x:0, y:0}, main) {
+    map.forEach((row, j) => {
+      row.forEach((key, i) => {
+        if (key === null) {
+          return;
+        }
+
+        if (key.entity) {
+          this.createEntity(key.entity, (i + offset.x) * 32, (j + offset.y) * 32);
+          return;
+        }
+        if (key.chunk) {
+          this.ParseMap(key.chunk, key.sheet || sheet, {x: i + offset.x, y: j + offset.y});
+          return;
+        }
+
+        if (key.collider) {
+          let newCollider = this.createCollider(key, i, j, offset);
+          this.colliders.push(newCollider);
+        }
+        let newTile = this.createTile(key, sheet, i, j, offset);
+        this.tiles.push(newTile);
+
+      });
+    });
+
+    if (main) {
+      this.finishParse();
+    }
+  }
+
+  finishParse() {
+    this.entities.player.colliders,
+    this.entities.player.collision.colliders = this.colliders;
+
+    this.entities.player.enemies = this.entities.enemies,
+    this.entities.player.collision.enemies = this.entities.enemies;
+
+    this.entities.enemies.forEach((entity) => {
+      entity.colliders, entity.collision.colliders = this.colliders;
+    });
+  }
+}
+
+module.exports = Level;
+
+
+/***/ }),
+/* 14 */,
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(1);
+
+class CoinSprite extends AnimatedSprite {
+
+  constructor(params) {
+    const image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    params.image = image;
+    params.col = 4;
+    params.ticksPerFrame = 12;
+    params.offset = {x: 0, y: 0};
+    params.staticSpeed = true;
+    super(params);
+  }
+  parseState() {
+    let oldState = this.object.currentState;
+
+    switch (this.object.target.animation.state) {
+      case 'idle':
+        this.object.range = {start: 0, end: 3};
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = CoinSprite;
+
+
+/***/ }),
+/* 16 */,
+/* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(1);
+
+class ItemBlockSprite extends AnimatedSprite {
+
+  constructor(params) {
+    const image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    params.image = image;
+    params.col = 3;
+    params.ticksPerFrame = 12;
+    params.offset = {x: 0, y: 0};
+    params.staticSpeed = true;
+    super(params);
+  }
+  parseState() {
+    let oldState = this.object.currentState;
+
+    switch (this.object.target.animation.state) {
+      case 'idle':
+        this.object.range = {start: 0, end: 3};
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = ItemBlockSprite;
+
+
+/***/ }),
+/* 18 */,
+/* 19 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const AnimatedSprite = __webpack_require__(1);
+
+class GaloombaSprite extends AnimatedSprite {
+  parseState() {
+    let oldState = this.object.currentState;
+
+    if (this.object.target.animation.face === 'right') {
+      this.object.col = 0;
+    } else {
+      this.object.col = 2;
+    }
+
+    switch (this.object.target.animation.state) {
+      case 'walk':
+        this.object.range = {start: 0, end: 2};
+        this.object.ticksPerFrame = 24;
+        break;
+      default:
+
+    }
+
+    this.object.currentState = this.object.target.animation.state;
+
+    if (this.object.currentState !== oldState) {
+      this.stateChange();
+    }
+  }
+
+  update() {
+    this.parseState();
+    super.update();
+  }
+}
+
+module.exports = GaloombaSprite;
+
+
+/***/ }),
+/* 20 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const Sprite = __webpack_require__(3);
+
+class GoalTape {
+  constructor(pos, ctx) {
+    this.pos = pos;
+    this.startPos = {x: 0, y: 0};
+    this.startPos.x = pos.x;
+    this.startPos.y = pos.y;
+    this.dir = -1;
+
+    this.ctx = ctx;
+    this.collider = this.createCollider();
+    this.sprite = this.createSprite();
+  }
+
+  createCollider() {
+    let newCollider = new Shape({
+      pos: this.pos,
+      width: 32,
+      height: 32,
+      color: 'rgba(0,0,0,0)'},
+      this.ctx,
+      'trigger'
+    );
+    return newCollider;
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    return new Sprite({ctx: this.ctx, width: 64, image: image, row: 2, col: 7, pos: this.pos, special: "tape"});
+  }
+
+  moveGoalTape() {
+    let tape = this.collider;
+    if (this.pos.y < this.startPos.y - 256) {
+      this.dir = 1;
+    }
+    if (this.pos.y > this.startPos.y) {
+      this.dir = -1;
+    }
+
+    this.pos.y += 2 * this.dir;
+  }
+
+  update() {
+    this.sprite.update();
+    this.collider.update();
+    this.collider.pos = this.pos;
+    this.moveGoalTape();
+    // this.sprite.object.pos.y -= 2;
+  }
+
+}
+
+module.exports = GoalTape;
+
+
+/***/ }),
+/* 21 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Util = __webpack_require__(4);
+const util = new Util();
+const Shape = __webpack_require__(0);
+
+const Collision = __webpack_require__(22);
+const SFX = __webpack_require__(9);
+const sfx = new SFX();
+
+class MovingObject {
+  constructor(shapeParameters, colliders, ctx, enemies) {
+    this.shape = new Shape(shapeParameters, ctx);
+    this.vel = {x: 0, y: 0};
+    this.input = {x: 0, y: 0, jump: false};
+
+    this.stats = {
+      walkSpeed: 3.05,
+      runSpeed: 5.05,
+      pSpeed: 7.25,
+      groundAcc: 0.0525,
+      airAcc: 0.035,
+      minJump: -4.75,
+      jump: -8.45,
+      grav: 0.2625
+    };
+    this.animation = {
+      face: 'right',
+      state: 'idle'
+    };
+    this.enemies = enemies;
+    this.colliders = colliders;
+    this.collision = new Collision(this, ctx);
+
+    this.status = {grounded: false, running: false, pMeter: 0, pRun: false, alive: true, remove: false};
+  }
+
+  update() {
+    this.movePos();
+    this.calcVel();
+    this.shape.render();
+    if (this.status.alive) {
+      this.collision.collisions();
+    }
+  }
+
+  speedType() {
+    if (this.collision.grounded && this.status.ducking) {
+      this.status.pMeter = 0;
+      return 0;
+    }
+    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running && this.collision.grounded) {
+      this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
+    } else if (this.collision.grounded){
+      this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
+    }
+    if (this.status.pMeter > 0.9) {
+      this.status.pRun = true;
+      return this.stats.pSpeed;
+    } else {
+      this.status.pRun = false;
+      return (this.status.running) ? this.stats.runSpeed : this.stats.walkSpeed;
+    }
+  }
+
+  calcVel() {
+    let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
+    let speed = this.speedType();
+    this.vel.x = util.lerp(this.vel.x, (this.input.x * speed), acc);
+    this.vel.y += this.stats.grav;
+  }
+
+  minJump() {
+    this.vel.y = this.stats.minJump;
+  }
+  jump() {
+    this.vel.y = this.stats.jump;
+  }
+
+  movePos() {
+    this.shape.pos.x += this.vel.x;
+    this.shape.pos.y += this.vel.y;
+  }
+
+  die() {
+    this.status.alive = false;
+    setTimeout(() => this.remove(), 1250);
+  }
+
+  remove() {
+    this.status.remove = true;
+  }
+
+}
+
+module.exports = MovingObject;
+
+
+/***/ }),
+/* 22 */
 /***/ (function(module, exports) {
 
 class Collision {
@@ -991,478 +1566,139 @@ module.exports = Collision;
 
 
 /***/ }),
-/* 9 */
-/***/ (function(module, exports) {
-
-class SFX {
-  constructor() {
-    const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
-    this.sounds = {
-      jump
-    };
-  }
-}
-
-module.exports = SFX;
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports) {
-
-const Input = function (entity) {
-
-  let inputs = {
-    leftHeld: false,
-    rightHeld: false,
-    jumpPressed: false,
-    jumpReleased: false,
-    jumpFresh: true,
-    runHeld: false,
-    downHeld: false,
-    keyPressed: false,
-    pausePressed: false
-  };
-
-  const update = () => {
-    inputs.jumpReleased = false;
-    inputs.jumpPressed = false;
-    inputs.keyPressed = false;
-  };
-
-  window.onkeydown = (e) => {
-    if (e.keyCode === 74 && inputs.jumpFresh) {
-      inputs.jumpPressed = true;
-      inputs.jumpFresh = false;
-    }
-    if (e.keyCode === 83) {
-      inputs.downHeld = true;
-    }
-    if(e.keyCode === 65) {
-      inputs.leftHeld = true;
-    } else if(e.keyCode === 68) {
-      inputs.rightHeld = true;
-    }
-    //j
-    if (e.keyCode === 75) {
-      inputs.runHeld = true;
-    }
-    //p
-    if (e.keyCode === 80) {
-      inputs.pausePressed = true;
-    }
-
-    inputs.keyPressed = true;
-  };
-
-  window.onkeyup = (e) => {
-    if (e.keyCode === 65) {
-      inputs.leftHeld = false;
-    }
-    if (e.keyCode === 68) {
-      inputs.rightHeld = false;
-    }
-    if (e.keyCode === 74) {
-      inputs.jumpReleased = true;
-      inputs.jumpFresh = true;
-    }
-    if (e.keyCode === 83) {
-      inputs.downHeld = false;
-    }
-    //j
-    if (e.keyCode === 75) {
-      inputs.runHeld = false;
-    }
-  };
-
-  return {inputs, update};
-};
-
-module.exports = Input;
-
-
-/***/ }),
-/* 11 */
+/* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const AnimatedSprite = __webpack_require__(1);
+const MovingObject = __webpack_require__(21);
+const Input = __webpack_require__(10);
+const MarioSprite = __webpack_require__(11);
 
-class MarioSprite extends AnimatedSprite {
-  parseState() {
-    let oldState = this.object.currentState;
-    if (this.object.target.animation.face === 'right') {
-      this.object.col = 0;
+class Player extends MovingObject {
+  constructor(shapeParameters, colliders, ctx, enemies) {
+    // shapeParameters.color = 'rgba(255,255,255,0.5)';
+    super(shapeParameters, colliders, ctx, enemies);
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
+    this.inputFetcher = new Input();
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/mario.png';
+    return new MarioSprite({ctx: this.ctx, width: 64, height: 64, image: image, target: this, offset:{x:22, y:8}});
+  }
+
+  handleAnimation() {
+    if (!this.status.alive) {
+      this.animation.state = 'die';
+      return;
+    }
+    if (this.status.ducking) {
+      this.animation.state = 'duck';
     } else {
-      this.object.col = 2;
-    }
-    switch (this.object.target.animation.state) {
-      case 'walk':
-        this.object.range = {start: 0, end: 3};
-        break;
-      case 'idle':
-        this.object.range = {start: 0, end: 0};
-        break;
-      case 'jump':
-        this.object.range = {start: 10, end: 10};
-        break;
-      case 'fall':
-        this.object.range = {start: 11, end: 11};
-        break;
-      case 'skid':
-        this.object.range = {start: 6, end: 6};
-        break;
-      case 'run':
-        this.object.range = {start: 3, end: 6};
-        break;
-      case 'runJump':
-        this.object.range = {start: 12, end: 12};
-        break;
-      case 'duck':
-        this.object.range = {start: 9, end: 9};
-        break;
-      case 'die':
-        this.object.range = {start: 13, end: 15};
-        this.object.col = 0;
-        this.object.ticksPerFrame = 4;
-        break;
-      default:
+      if (this.input.x < -0) {
+        this.animation.face = "left";
+      } else if (this.input.x > 0) {
+        this.animation.face = "right";
+      }
+      if (!this.collision.grounded) {
+        if (this.status.pRun) {
+          this.animation.state = "runJump";
+        } else {
+          if (this.vel.y > 0) {
+            this.animation.state = "fall";
+          } else {
+            this.animation.state = "jump";
+          }
+        }
+      }
 
-    }
-
-    this.object.currentState = this.object.target.animation.state;
-
-    if (this.object.currentState !== oldState) {
-      this.stateChange();
+      if (this.collision.grounded) {
+        if (this.vel.x < 0.25 && this.vel.x > -0.25) {
+          if (this.input.y === 1) {
+            this.animation.state = "lookUp";
+          } else {
+            this.animation.state = "idle";
+          }
+        }
+        if (this.vel.x > 0.25) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.25) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.25 && this.input.x > 0
+          || this.vel.x > 0.25 && this.input.x < 0) {
+            this.animation.state = "skid";
+        }
+      }
     }
   }
 
-  update() {
-    this.parseState();
+  handleInput() {
+    if (!this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 0;
+    }
+    if (this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = -1;
+    }
+    if (!this.inputFetcher.inputs.leftHeld
+      && this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 1;
+    }
+    if (this.inputFetcher.inputs.jumpPressed
+      && this.collision.grounded) {
+      this.jump();
+      // sfx.sounds.jump.play();
+    }
+    if (this.inputFetcher.inputs.jumpReleased
+      && this.vel.y < this.stats.minJump
+      && !this.collision.grounded) {
+      this.minJump();
+    }
+    this.status.running = this.inputFetcher.inputs.runHeld;
+    if (this.collision.grounded) {
+      this.status.ducking = this.inputFetcher.inputs.downHeld;
+    }
+
+    if (this.inputFetcher.inputs.upHeld) {
+      this.input.y = 1;
+    } else {
+      this.input.y = 0;
+    }
+  }
+
+  update(){
+    if (this.status.alive) {
+      this.handleInput();
+      this.inputFetcher.update();
+    }
+    this.sprite.update();
+    this.handleAnimation();
     super.update();
   }
-}
 
-module.exports = MarioSprite;
-
-
-/***/ }),
-/* 12 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const LevelCreator = __webpack_require__(13);
-
-class Level1 extends LevelCreator {
-  constructor(ctx) {
-    super(ctx);
-    this.createLevel(this.mapLevel());
+  damage() {
+    this.die();
   }
 
-  mapLevel() {
-
-    //get keys
-    let { pl, en, ki, tl, to, tr, ml, mi,
-          mr, bl, bo, br, __, ww, we, wl,
-          wr, ch, bt, bm, ft, fm, tt, go,
-          gg, ib, co
-        } = this.getKeys();
-
-
-    const m3 = {
-      chunk: [
-        [__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,ww,to,we,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,wl,mi,wr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      ]
-    };
-
-    const m2 = {
-      chunk: [
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m3],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,ww,to,we,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,wl,mi,wr,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      ]
-    };
-
-    const m1 = {
-      chunk: [
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,ib,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,ml,mi,mr,__,__,__,en,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,pl,__,__,co,__,__,ml,mi,mr,__,__,__,__,co,co,co,co,co,co,co,co,co,co,co,co,co,co,__,__,__],
-        [tl,to,we,__,co,__,ww,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
-        [ml,mi,wr,__,co,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,wr,__,co,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,wr,__,co,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,wr,__,co,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,wr,__,co,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [ki,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-      ]
-    };
-
-    return m1;
-  }
-}
-
-module.exports = Level1;
-
-
-/***/ }),
-/* 13 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(3);
-const Coin = __webpack_require__(14);
-const ItemBlock = __webpack_require__(16);
-const Player = __webpack_require__(5);
-const Galoomba = __webpack_require__(18);
-const GoalTape = __webpack_require__(20);
-
-class Level {
-  constructor(ctx) {
-    this.ctx = ctx;
-    this.colliders = [];
-    this.tiles = [];
-    this.entities = {player: null, enemies: [], items: []};
-  }
-
-  getKeys() {
-    let objectSheet = new Image();
-    objectSheet.src = 'assets/images/misc_objects.png';
-
-    const pl = {
-      entity: 'player'
-    };
-    const en = {
-      entity: 'enemy'
-    };
-
-    const ki = {
-      entity: 'kill'
-    };
-
-    //main ground tiles
-    const tl = { row: 0, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
-    const to = { row: 1, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
-    const tr = { row: 2, col: 0, collider: 'through', height: 16, offset: {x: 0, y: -8}};
-    const ml = { row: 0, col: 1, collider: false};
-    const mi = { row: 1, col: 1, collider: false};
-    const mr = { row: 2, col: 1, collider: false};
-    const bl = { row: 0, col: 2, collider: 'block'};
-    const bo = { row: 1, col: 2, collider: 'block'};
-    const br = { row: 2, col: 2, collider: 'block'};
-    const __ = null;
-
-    //walls and and corners
-    const ww = { row: 3, col: 0, collider: 'block'};
-    const we = { row: 5, col: 0, collider: 'block'};
-    const wl = { row: 3, col: 1, collider: 'block'};
-    const wr = { row: 5, col: 1, collider: 'block'};
-
-    //3 x 3 chunk
-    const ch = {
-      chunk: [
-        [tl,to,tr],
-        [ml,mi,mr],
-        [bl,bo,br],
-      ]
-    };
-
-    //goal gate
-    const bt = { row: 0, col: 7, collider: false};
-    const bm = { row: 0, col: 8, collider: false};
-    const ft = { row: 1, col: 7, collider: false};
-    const fm = { row: 1, col: 8, collider: false};
-    const tt = { row: 2, col: 7, collider: 'trigger', width: 64, entity: 'tape'};
-    const go = {entity: 'goal'};
-    const gg = {
-      chunk: [
-        [bt,__,ft,go,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,tt,fm,__,__],
-      ],
-      sheet: objectSheet
-    };
-    const ib = { row: 0, col: 2, collider: 'block', sheet: objectSheet, entity: 'itemBlock'};
-
-    const co = { row: 0, col: 4, collider: false, sheet: objectSheet, entity: 'coin'};
-
-    return {
-      pl, en, ki, tl, to, tr, ml, mi,
-      mr, bl, bo, br, __, ww, we, wl,
-      wr, ch, bt, bm, ft, fm, tt, go,
-      gg, ib, co
-    };
-  }
-
-  createLevel(level) {
-    let groundSheet = new Image();
-    groundSheet.src = 'assets/images/ground_tiles.png';
-
-    const map = [[level]];
-
-    this.ParseMap(map, groundSheet, {x:0, y: 0}, true);
-  }
-
-  createTile(key, sheet, i, j, offset) {
-    let newTile = new Sprite({
-      ctx: this.ctx,
-      image: key.sheet || sheet,
-      pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
-      row: key.row,
-      col: key.col
-    });
-
-    return newTile;
-  }
-
-  createCollider(key, i, j, offset) {
-    const pixelOffset = key.offset || {x: 0, y: 0};
-    let newCollider = new Shape({
-      pos: {x: ((i + offset.x) * 32) + pixelOffset.x, y: ((j + offset.y) * 32) + pixelOffset.y},
-      width: key.width || 32,
-      height: key.height || 32,
-      color: 'rgba(0,0,0,0)'},
-      this.ctx,
-      key.collider
-    );
-    return newCollider;
-  }
-
-  createEntity(type, x, y) {
-    switch (type) {
-      case 'player':
-        this.entities.player = new Player({pos: {x, y}, width: 20, height: 56}, [], this.ctx);
-        return;
-      case 'coin':
-        const coin = new Coin({ctx: this.ctx, pos: {x, y}});
-        this.entities.items.push(coin);
-        this.colliders.push(coin.shape);
-        return;
-      case 'itemBlock':
-        const itemBlock = new ItemBlock({ctx: this.ctx, pos: {x, y}});
-        this.entities.items.push(itemBlock);
-        this.colliders.push(itemBlock.shape);
-        return;
-      case 'enemy':
-        this.entities.enemies.push(new Galoomba({pos: {x, y}, width: 32, height: 32}, [], this.ctx));
-        return;
-      case 'tape':
-        const tape = new GoalTape({x, y}, this.ctx);
-        this.tiles.push(tape);
-        this.colliders.push(tape.collider);
-        return;
-      case 'goal':
-        let newCollider = new Shape({
-          pos: {x, y},
-          width: 32,
-          height: 1028,
-          color: 'rgba(0,0,0,0)'},
-          this.ctx,
-          'trigger'
-        );
-        this.colliders.push(newCollider);
-        return;
-      case 'kill':
-        this.colliders.push(new Shape({pos: {x, y}, width: 10000, height: 32}, this.ctx, 'kill'));
-        return;
-      default:
-
+  die() {
+    if (this.status.alive) {
+      super.die();
+      this.jump();
+      this.input.x = 0;
+      this.vel.x = 0;
     }
   }
-
-  ParseMap(map, sheet, offset={x:0, y:0}, main) {
-    map.forEach((row, j) => {
-      row.forEach((key, i) => {
-        if (key === null) {
-          return;
-        }
-
-        if (key.entity) {
-          this.createEntity(key.entity, (i + offset.x) * 32, (j + offset.y) * 32);
-          return;
-        }
-        if (key.chunk) {
-          this.ParseMap(key.chunk, key.sheet || sheet, {x: i + offset.x, y: j + offset.y});
-          return;
-        }
-
-        if (key.collider) {
-          let newCollider = this.createCollider(key, i, j, offset);
-          this.colliders.push(newCollider);
-        }
-        let newTile = this.createTile(key, sheet, i, j, offset);
-        this.tiles.push(newTile);
-
-      });
-    });
-
-    if (main) {
-      this.finishParse();
-    }
-  }
-
-  finishParse() {
-    this.entities.player.colliders,
-    this.entities.player.collision.colliders = this.colliders;
-
-    this.entities.player.enemies = this.entities.enemies,
-    this.entities.player.collision.enemies = this.entities.enemies;
-
-    this.entities.enemies.forEach((entity) => {
-      entity.colliders, entity.collision.colliders = this.colliders;
-    });
-  }
 }
 
-module.exports = Level;
+module.exports = Player;
 
 
 /***/ }),
-/* 14 */
+/* 24 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
@@ -1499,52 +1735,7 @@ module.exports = Coin;
 
 
 /***/ }),
-/* 15 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const AnimatedSprite = __webpack_require__(1);
-
-class CoinSprite extends AnimatedSprite {
-
-  constructor(params) {
-    const image = new Image();
-    image.src = 'assets/images/misc_objects.png';
-    params.image = image;
-    params.col = 4;
-    params.ticksPerFrame = 12;
-    params.offset = {x: 0, y: 0};
-    params.staticSpeed = true;
-    super(params);
-  }
-  parseState() {
-    let oldState = this.object.currentState;
-
-    switch (this.object.target.animation.state) {
-      case 'idle':
-        this.object.range = {start: 0, end: 3};
-        break;
-      default:
-
-    }
-
-    this.object.currentState = this.object.target.animation.state;
-
-    if (this.object.currentState !== oldState) {
-      this.stateChange();
-    }
-  }
-
-  update() {
-    this.parseState();
-    super.update();
-  }
-}
-
-module.exports = CoinSprite;
-
-
-/***/ }),
-/* 16 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
@@ -1581,55 +1772,10 @@ module.exports = ItemBlock;
 
 
 /***/ }),
-/* 17 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const AnimatedSprite = __webpack_require__(1);
-
-class ItemBlockSprite extends AnimatedSprite {
-
-  constructor(params) {
-    const image = new Image();
-    image.src = 'assets/images/misc_objects.png';
-    params.image = image;
-    params.col = 3;
-    params.ticksPerFrame = 12;
-    params.offset = {x: 0, y: 0};
-    params.staticSpeed = true;
-    super(params);
-  }
-  parseState() {
-    let oldState = this.object.currentState;
-
-    switch (this.object.target.animation.state) {
-      case 'idle':
-        this.object.range = {start: 0, end: 3};
-        break;
-      default:
-
-    }
-
-    this.object.currentState = this.object.target.animation.state;
-
-    if (this.object.currentState !== oldState) {
-      this.stateChange();
-    }
-  }
-
-  update() {
-    this.parseState();
-    super.update();
-  }
-}
-
-module.exports = ItemBlockSprite;
-
-
-/***/ }),
-/* 18 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const MovingObject = __webpack_require__(2);
+const MovingObject = __webpack_require__(21);
 const GaloombaSprite = __webpack_require__(19);
 
 class Galoomba extends MovingObject {
@@ -1655,110 +1801,6 @@ class Galoomba extends MovingObject {
 }
 
 module.exports = Galoomba;
-
-
-/***/ }),
-/* 19 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const AnimatedSprite = __webpack_require__(1);
-
-class GaloombaSprite extends AnimatedSprite {
-  parseState() {
-    let oldState = this.object.currentState;
-
-    if (this.object.target.animation.face === 'right') {
-      this.object.col = 0;
-    } else {
-      this.object.col = 2;
-    }
-
-    switch (this.object.target.animation.state) {
-      case 'walk':
-        this.object.range = {start: 0, end: 2};
-        this.object.ticksPerFrame = 24;
-        break;
-      default:
-
-    }
-
-    this.object.currentState = this.object.target.animation.state;
-
-    if (this.object.currentState !== oldState) {
-      this.stateChange();
-    }
-  }
-
-  update() {
-    this.parseState();
-    super.update();
-  }
-}
-
-module.exports = GaloombaSprite;
-
-
-/***/ }),
-/* 20 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(3);
-
-class GoalTape {
-  constructor(pos, ctx) {
-    this.pos = pos;
-    this.startPos = {x: 0, y: 0};
-    this.startPos.x = pos.x;
-    this.startPos.y = pos.y;
-    this.dir = -1;
-
-    this.ctx = ctx;
-    this.collider = this.createCollider();
-    this.sprite = this.createSprite();
-  }
-
-  createCollider() {
-    let newCollider = new Shape({
-      pos: this.pos,
-      width: 32,
-      height: 32,
-      color: 'rgba(0,0,0,0)'},
-      this.ctx,
-      'trigger'
-    );
-    return newCollider;
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/misc_objects.png';
-    return new Sprite({ctx: this.ctx, width: 64, image: image, row: 2, col: 7, pos: this.pos, special: "tape"});
-  }
-
-  moveGoalTape() {
-    let tape = this.collider;
-    if (this.pos.y < this.startPos.y - 256) {
-      this.dir = 1;
-    }
-    if (this.pos.y > this.startPos.y) {
-      this.dir = -1;
-    }
-
-    this.pos.y += 2 * this.dir;
-  }
-
-  update() {
-    this.sprite.update();
-    this.collider.update();
-    this.collider.pos = this.pos;
-    this.moveGoalTape();
-    // this.sprite.object.pos.y -= 2;
-  }
-
-}
-
-module.exports = GoalTape;
 
 
 /***/ })
