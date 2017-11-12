@@ -360,6 +360,9 @@ const MovingObject = __webpack_require__(2);
 const Input = __webpack_require__(10);
 const MarioSprite = __webpack_require__(11);
 
+const SFX = __webpack_require__(9);
+const sfx = new SFX();
+
 class Player extends MovingObject {
   constructor(shapeParameters, colliders, ctx, enemies) {
     shapeParameters.color = 'rgba(255,255,255,0)';
@@ -408,7 +411,7 @@ class Player extends MovingObject {
           if (this.input.y === 1) {
             this.animation.state = "lookUp";
           } else {
-            this.animation.state = (!this.status.victory) ? "idle" : "victory"
+            this.animation.state = (!this.status.victory) ? "idle" : "victory";
           }
         }
         if (this.vel.x > 0.25) {
@@ -441,7 +444,7 @@ class Player extends MovingObject {
     if (this.inputFetcher.inputs.jumpPressed
       && this.collision.grounded) {
       this.jump();
-      // sfx.sounds.jump.play();
+      sfx.sounds.jump.play();
     }
     if (this.inputFetcher.inputs.jumpReleased
       && this.vel.y < this.stats.minJump
@@ -1130,7 +1133,7 @@ class Collision {
 
   handleTrigger(collider) {
     if (this.object.name === 'player') {
-      collider.owner.triggered(this.object);
+      collider.owner.setTrigger(this.object);
       collider.die();
     }
   }
@@ -1870,7 +1873,7 @@ class Galoomba extends MovingObject {
     }
   }
 
-  triggered() {
+  setTrigger() {
     this.status.active = true;
   }
 
@@ -1942,6 +1945,7 @@ class GoalTape {
     this.ctx = ctx;
     this.collider = this.createCollider();
     this.sprite = this.createSprite();
+    this.triggered = false;
   }
 
   createCollider() {
@@ -1976,14 +1980,17 @@ class GoalTape {
   }
 
   update() {
-    this.sprite.update();
+    if (!this.triggered) {
+      this.sprite.update();
+    }
     this.collider.update();
     this.collider.pos = this.pos;
     this.moveGoalTape();
     // this.sprite.object.pos.y -= 2;
   }
 
-  triggered(collidee) {
+  setTrigger(collidee) {
+    this.triggered = true;
     collidee.victory();
   }
 
