@@ -78,6 +78,7 @@ class Shape {
 
     this.type = type || '';
     this.owner = owner;
+    this.status = {remove: false};
 
     this.ctx = ctx;
   }
@@ -103,6 +104,10 @@ class Shape {
       x: this.pos.x + (this.width / 2),
       y: this.pos.y + (this.height / 2)
     };
+  }
+
+  die() {
+    this.status.remove = true;
   }
 }
 
@@ -177,7 +182,114 @@ module.exports = AnimatedSprite;
 
 
 /***/ }),
-/* 2 */,
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Util = __webpack_require__(4);
+const util = new Util();
+const Shape = __webpack_require__(0);
+
+const Collision = __webpack_require__(8);
+const SFX = __webpack_require__(9);
+const sfx = new SFX();
+
+class MovingObject {
+  constructor(shapeParameters, colliders, ctx, enemies) {
+    this.shape = new Shape(shapeParameters, ctx);
+    this.vel = {x: 0, y: 0};
+    this.input = {x: 0, y: 0, jump: false};
+
+    this.stats = {
+      walkSpeed: 3.05,
+      runSpeed: 5.05,
+      pSpeed: 7.25,
+      groundAcc: 0.0525,
+      airAcc: 0.035,
+      minJump: -4.75,
+      jump: -8.45,
+      grav: 0.2625
+    };
+    this.animation = {
+      face: 'right',
+      state: 'idle'
+    };
+    this.enemies = enemies;
+    this.colliders = colliders;
+    this.collision = new Collision(this, ctx);
+
+    this.status = {
+      grounded: false,
+      running: false,
+      pMeter: 0,
+      pRun: false,
+      alive: true,
+      remove: false,
+      input: true
+    };
+  }
+
+  update() {
+    this.movePos();
+    this.calcVel();
+    this.shape.render();
+    if (this.status.alive) {
+      this.collision.collisions();
+    }
+  }
+
+  speedType() {
+    if (this.collision.grounded && this.status.ducking) {
+      this.status.pMeter = 0;
+      return 0;
+    }
+    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running && this.collision.grounded) {
+      this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
+    } else if (this.collision.grounded){
+      this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
+    }
+    if (this.status.pMeter > 0.9) {
+      this.status.pRun = true;
+      return this.stats.pSpeed;
+    } else {
+      this.status.pRun = false;
+      return (this.status.running) ? this.stats.runSpeed : this.stats.walkSpeed;
+    }
+  }
+
+  calcVel() {
+    let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
+    let speed = this.speedType();
+    this.vel.x = util.lerp(this.vel.x, (this.input.x * speed), acc);
+    this.vel.y += this.stats.grav;
+  }
+
+  minJump() {
+    this.vel.y = this.stats.minJump;
+  }
+  jump() {
+    this.vel.y = this.stats.jump;
+  }
+
+  movePos() {
+    this.shape.pos.x += this.vel.x;
+    this.shape.pos.y += this.vel.y;
+  }
+
+  die() {
+    this.status.alive = false;
+    setTimeout(() => this.remove(), 1250);
+  }
+
+  remove() {
+    this.status.remove = true;
+  }
+
+}
+
+module.exports = MovingObject;
+
+
+/***/ }),
 /* 3 */
 /***/ (function(module, exports) {
 
@@ -241,7 +353,155 @@ module.exports = Util;
 
 
 /***/ }),
-/* 5 */,
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const MovingObject = __webpack_require__(2);
+const Input = __webpack_require__(10);
+const MarioSprite = __webpack_require__(11);
+
+class Player extends MovingObject {
+  constructor(shapeParameters, colliders, ctx, enemies) {
+    shapeParameters.color = 'rgba(255,255,255,0)';
+    super(shapeParameters, colliders, ctx, enemies);
+    this.name = "player";
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
+    this.inputFetcher = new Input();
+    this.status.victory = false;
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/mario.png';
+    return new MarioSprite({ctx: this.ctx, width: 64, height: 64, image: image, target: this, offset:{x:22, y:8}});
+  }
+
+  handleAnimation() {
+    if (!this.status.alive) {
+      this.animation.state = 'die';
+      return;
+    }
+    if (this.status.ducking) {
+      this.animation.state = 'duck';
+    } else {
+      if (this.input.x < -0) {
+        this.animation.face = "left";
+      } else if (this.input.x > 0) {
+        this.animation.face = "right";
+      }
+      if (!this.collision.grounded) {
+        if (this.status.pRun) {
+          this.animation.state = "runJump";
+        } else {
+          if (this.vel.y > 0) {
+            this.animation.state = "fall";
+          } else {
+            this.animation.state = "jump";
+          }
+        }
+      }
+
+      if (this.collision.grounded) {
+        if (this.vel.x < 0.25 && this.vel.x > -0.25) {
+          if (this.input.y === 1) {
+            this.animation.state = "lookUp";
+          } else {
+            this.animation.state = (!this.status.victory) ? "idle" : "victory"
+          }
+        }
+        if (this.vel.x > 0.25) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.25) {
+          this.animation.state = (!this.status.pRun) ? "walk" : "run";
+        }
+        if (this.vel.x < -0.25 && this.input.x > 0
+          || this.vel.x > 0.25 && this.input.x < 0) {
+            this.animation.state = "skid";
+        }
+      }
+    }
+  }
+
+  handleInput() {
+    if (!this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 0;
+    }
+    if (this.inputFetcher.inputs.leftHeld
+      && !this.inputFetcher.inputs.rightHeld) {
+      this.input.x = -1;
+    }
+    if (!this.inputFetcher.inputs.leftHeld
+      && this.inputFetcher.inputs.rightHeld) {
+      this.input.x = 1;
+    }
+    if (this.inputFetcher.inputs.jumpPressed
+      && this.collision.grounded) {
+      this.jump();
+      // sfx.sounds.jump.play();
+    }
+    if (this.inputFetcher.inputs.jumpReleased
+      && this.vel.y < this.stats.minJump
+      && !this.collision.grounded) {
+      this.minJump();
+    }
+    this.status.running = this.inputFetcher.inputs.runHeld;
+    if (this.collision.grounded) {
+      this.status.ducking = this.inputFetcher.inputs.downHeld;
+    }
+
+    if (this.inputFetcher.inputs.upHeld) {
+      this.input.y = 1;
+    } else {
+      this.input.y = 0;
+    }
+  }
+
+  update(){
+    if (this.status.alive && this.status.input) {
+      this.handleInput();
+      this.inputFetcher.update();
+    }
+    this.sprite.update();
+    this.handleAnimation();
+    super.update();
+  }
+
+  damage() {
+    this.die();
+  }
+
+  victory() {
+    this.status.victory = true;
+    this.status.input = false;
+    this.input.x = 0.325;
+    this.status.running = false;
+    this.status.pRun = false;
+    this.status.pRun = false;
+    setTimeout(() => {
+      this.input.x = 0;
+    }, 6853);
+    setTimeout(() => {
+      this.input.x = 0.325;
+    }, 7853);
+  }
+
+  die() {
+    if (this.status.alive) {
+      super.die();
+      this.jump();
+      this.input.x = 0;
+      this.vel.x = 0;
+    }
+  }
+}
+
+module.exports = Player;
+
+
+/***/ }),
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -264,8 +524,8 @@ new Game(canvasEl);
 const Util = __webpack_require__(4);
 const Shape = __webpack_require__(0);
 
-const MovingObject = __webpack_require__(21);
-const Player = __webpack_require__(23);
+const MovingObject = __webpack_require__(2);
+const Player = __webpack_require__(5);
 
 const AnimatedSprite = __webpack_require__(1);
 const Sprite = __webpack_require__(3);
@@ -289,6 +549,9 @@ class Game {
     this.dev = false;
     this.pause = true;
 
+    this.songs = [];
+    this.currentSong = null;
+
     this.level = null;
     this.colliders = [];
     this.tiles = [];
@@ -298,6 +561,8 @@ class Game {
 
     this.start();
     this.gameStart = true;
+
+    this.levelEnded = false;
   }
 
   checkBoundaries() {
@@ -360,9 +625,12 @@ class Game {
     }
   }
 
+  //---
+
   startAudio() {
     var audioIntro = new Audio('assets/audio/music/overworld_intro.wav');
     var audioMain = new Audio('assets/audio/music/overworld_main.wav');
+    this.currentSong = audioIntro;
     audioIntro.play();
     const songs = [audioIntro, audioMain];
     if (this.dev) {
@@ -373,15 +641,30 @@ class Game {
     return songs;
   }
 
+  pauseAudio() {
+    this.currentSong.pause();
+  }
+  unpauseAudio() {
+    this.currentSong.play();
+  }
+
   handleAudio(audioIntro, audioMain) {
-    if (audioIntro.currentTime >= audioIntro.duration  -0.075 ||
+    if (this.dev) {
+      this.songs.forEach((song) => {
+        song.volume = 0;
+      });
+    }
+    if (audioIntro && audioIntro.currentTime >= audioIntro.duration  -0.075 ||
       audioMain.currentTime >= audioMain.duration - 0.075) {
+        this.currentSong = audioMain;
         audioIntro.currentTime = 0;
         audioIntro.pause();
         audioMain.currentTime = 0;
         audioMain.play();
     }
   }
+
+  //---
 
   destroyEverything() {
     this.level = null;
@@ -408,6 +691,7 @@ class Game {
 
   restart() {
     this.destroyEverything();
+
     this.start(this.canvasEl);
     cancelAnimationFrame(this.req);
   }
@@ -416,6 +700,11 @@ class Game {
     if (this.pause) {
 
       if (this.input.pausePressed || (this.input.keyPressed && this.gameStart)) {
+        if (this.gameStart) {
+          this.levelStart();
+        } else {
+          this.unpauseAudio();
+        }
         this.gameStart = false;
         this.pause = false;
         //lazy lazy bad :(
@@ -428,6 +717,7 @@ class Game {
     } else {
       if (this.input.pausePressed) {
         this.pause = true;
+        this.pauseAudio();
         //bad dont change input from outside
         this.input.pausePressed = false;
         this.input.keyPressed = false;
@@ -453,6 +743,33 @@ class Game {
     );
   }
 
+  //---
+
+  levelStart() {
+    this.songs = this.startAudio();
+  }
+
+  beginEndLevel() {
+    this.levelEnded = true;
+    this.pauseAudio();
+    var courseClearFanfare = new Audio('assets/audio/music/course_clear_fanfare.wav');
+    courseClearFanfare.play();
+    this.songs.push(courseClearFanfare);
+    setTimeout(() => {
+      this.endLevel();
+    }, 8853);
+  }
+
+  endLevel() {
+    this.screen = {alpha: 3, rate: -0.075, loading: true};
+    this.entities.player.status.victory = false;
+    this.input.pausePressed = false;
+    this.input.keyPressed = false;
+    this.levelEnded = false;
+    this.gameStart = true;
+    this.pause = true;
+  }
+
   start() {
     const ctx = this.canvasEl.getContext("2d");
 
@@ -462,11 +779,14 @@ class Game {
     this.entities = this.level.entities;
     this.input = this.entities.player.inputFetcher.inputs;
 
-    // const songs = this.startAudio();
-
     const animateCallback = () => {
 
-      this.handlePause(ctx, animateCallback);
+      if (this.entities.player.status.victory && !this.levelEnded) {
+        this.beginEndLevel();
+      }
+      if (!this.levelEnded) {
+        this.handlePause(ctx, animateCallback);
+      }
       if (this.pause) {
         if (this.gameStart) {
           this.waitForUser(ctx);
@@ -474,14 +794,17 @@ class Game {
         this.req = requestAnimationFrame(animateCallback);
         return;
       }
-      // this.handleAudio(songs[0], songs[1]);
+      this.handleAudio(this.songs[0], this.songs[1]);
       //clear canvas then render objects
       this.render(ctx);
 
       this.moveViewport(ctx, this.canvasEl, this.entities.player);
       this.createBackground(this.entities.player, ctx);
 
-      this.colliders.forEach((collider) => {
+      this.colliders.forEach((collider, i) => {
+        if (collider.status.remove) {
+          this.colliders.splice(i, 1);
+        }
         collider.render(ctx);
       });
 
@@ -489,9 +812,9 @@ class Game {
         tile.update(ctx);
       });
 
-      this.entities.player.update();
+
       this.entities.enemies.forEach((entity, i) => {
-        if (entity.status.remove) {
+        if (entity.status.remove || this.entities.player.victory) {
           this.entities.enemies.splice(i, 1);
         }
         entity.update(ctx);
@@ -502,6 +825,14 @@ class Game {
         }
         entity.update();
       });
+
+      if (this.levelEnded) {
+        this.screen.alpha += 0.005;
+        ctx.fillStyle = `rgba(0,0,0,${this.screen.alpha})`;
+        ctx.fillRect(-offset.x, -offset.y, this.xDim, this.yDim);
+      }
+
+      this.entities.player.update();
 
       if (this.dev) {
         this.devMethods(this.entities.player);
@@ -526,7 +857,254 @@ module.exports = Game;
 
 
 /***/ }),
-/* 8 */,
+/* 8 */
+/***/ (function(module, exports) {
+
+class Collision {
+  constructor(object, ctx) {
+    this.ctx = ctx;
+    this.raycastAmount = 4;
+    //Prevents a hit with a collider below the square
+    this.skin = 1;
+
+    this.object = object;
+    this.shape = object.shape;
+    this.vel = object.vel;
+
+    this.enemies = object.enemies || [];
+    this.colliders = object.colliders;
+    this.grounded = false;
+  }
+
+  collisions() {
+    this.horizontalCollisions();
+    this.grounded = this.verticalCollisions();
+  }
+
+  //---
+
+  horizontalCollisions() {
+    for (var i = 0; i < this.raycastAmount; i++) {
+      let startX;
+      let endX;
+
+      let spacing = (i * ((this.shape.height - this.skin) / (this.raycastAmount - 1))) + (this.skin / 2);
+
+      if (this.vel.x > 0) {
+        startX = {
+          x: this.shape.calcCenter().x + (this.shape.width / 2),
+          y: this.shape.pos.y + spacing
+        };
+        endX = {
+          x: this.shape.calcCenter().x + (this.shape.width / 2) + Math.abs(this.object.vel.x),
+          y: this.shape.pos.y + spacing
+        };
+      } else {
+        startX = {
+          x: this.shape.calcCenter().x - (this.shape.width / 2),
+          y: this.shape.pos.y + spacing
+        };
+        endX = {
+          x: this.shape.calcCenter().x - (this.shape.width / 2) - Math.abs(this.object.vel.x),
+          y: this.shape.pos.y + spacing
+        };
+      }
+
+      let hit = this.raycast(startX, endX, 'horizontal');
+      if (hit) {
+        this.parseHorizontalCollision(hit);
+      }
+    }
+  }
+
+  parseHorizontalCollision(hit) {
+    if (hit.collider) {
+      switch (hit.collider.type) {
+        case 'block':
+          this.handleHorizontalCollision(hit);
+          break;
+        case 'trigger':
+          this.handleTrigger(hit.collider);
+          break;
+        case 'coin':
+          hit.collider.owner.die();
+          break;
+        case 'kill':
+          this.handleTrigger();
+          this.object.die();
+          break;
+        case 'through':
+          break;
+        default:
+
+      }
+    }
+    if (hit.enemy) {
+      this.object.damage();
+    }
+  }
+
+  handleHorizontalCollision(hit) {
+    if (this.vel.x > 0) {
+      this.shape.pos.x = (hit.collider.calcCenter().x - hit.collider.width / 2) - this.shape.width;
+    } else {
+      this.shape.pos.x = (hit.collider.calcCenter().x + hit.collider.width / 2);
+    }
+    this.vel.x = 0;
+  }
+
+  //---
+
+  verticalCollisions() {
+    let anyCollisions = false;
+
+    for (var i = 0; i < this.raycastAmount; i++) {
+      let startY;
+      let endY;
+
+      let spacing = (i * ((this.shape.width) / (this.raycastAmount - 1)));
+
+      if (this.vel.y > 0) {
+        startY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.calcCenter().y + (this.shape.height / 2)
+        };
+        endY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.calcCenter().y + (this.shape.height / 2) + Math.abs(this.object.vel.y)
+        };
+      } else {
+        startY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.calcCenter().y - (this.shape.height / 2)
+        };
+        endY = {
+          x: this.shape.pos.x + spacing,
+          y: this.shape.calcCenter().y - (this.shape.height / 2) - Math.abs(this.object.vel.y)
+        };
+      }
+
+      let hit = this.raycast(startY, endY, 'vertical');
+      if (hit) {
+        anyCollisions = this.parseVerticalCollision(hit);
+      }
+    }
+
+    return anyCollisions;
+  }
+
+  parseVerticalCollision(hit) {
+    if (hit.collider) {
+      switch (hit.collider.type) {
+        case 'block':
+          this.handleVerticalCollision(hit);
+          return true;
+        case 'trigger':
+          this.handleTrigger(hit.collider);
+          break;
+        case 'coin':
+          hit.collider.owner.die();
+          break;
+        case 'kill':
+          this.object.die();
+          break;
+        case 'through':
+          if (this.object.vel.y > 0) {
+            this.handleVerticalCollision(hit);
+            return true;
+          }
+        default:
+
+      }
+    } else {
+      this.handleVerticalCollisionEnemy(hit);
+    }
+  }
+
+  handleVerticalCollision(hit) {
+    if (this.vel.y > 0) {
+      this.shape.pos.y = (hit.collider.calcCenter().y - hit.collider.height / 2) - this.shape.height;
+    } else {
+      this.shape.pos.y = (hit.collider.calcCenter().y + hit.collider.height / 2);
+    }
+
+    this.vel.y = 0;
+  }
+
+  handleVerticalCollisionEnemy(hit) {
+    if (this.vel.y > 0) {
+      hit.enemy.die();
+      this.object.minJump();
+    } else {
+      this.object.damage();
+    }
+  }
+
+  //---
+
+  checkCollision(point, type) {
+    //checks if point is within any of the colliders
+    for (var i = 0; i < this.colliders.length; i++) {
+
+      if (point.y > this.colliders[i].calcCenter().y - (this.colliders[i].height / 2)
+       && point.y < this.colliders[i].calcCenter().y + (this.colliders[i].height / 2)) {
+
+        if (point.x > this.colliders[i].calcCenter().x - (this.colliders[i].width / 2)
+         && point.x < this.colliders[i].calcCenter().x + (this.colliders[i].width / 2)) {
+
+          return { collider: this.colliders[i]};
+
+        }
+
+      }
+
+    }
+  }
+
+  checkCollisionEnemy(point) {
+    for (var i = 0; i < this.enemies.length; i++) {
+      let collider = this.enemies[i].shape;
+      if (point.y > collider.calcCenter().y - (collider.height / 2)
+       && point.y < collider.calcCenter().y + (collider.height / 2)) {
+
+        if (point.x > collider.calcCenter().x - (collider.width / 2)
+         && point.x < collider.calcCenter().x + (collider.width / 2)) {
+
+          return { enemy: this.enemies[i]};
+
+        }
+
+      }
+
+    }
+  }
+
+  handleTrigger(collider) {
+    if (this.object.name === 'player') {
+      collider.owner.triggered(this.object);
+      collider.die();
+    }
+  }
+
+  //---
+
+  raycast(start, end, type) {
+    // this.renderRaycast(start, end, 'red');
+    return this.checkCollision(end, type) || this.checkCollisionEnemy(end);
+  }
+
+  renderRaycast(start, end, color) {
+    this.ctx.beginPath();
+    this.ctx.moveTo(start.x, start.y);
+    this.ctx.lineTo(end.x, end.y);
+    this.ctx.stroke();
+  }
+}
+
+module.exports = Collision;
+
+
+/***/ }),
 /* 9 */
 /***/ (function(module, exports) {
 
@@ -565,6 +1143,10 @@ const Input = function (entity) {
     inputs.jumpReleased = false;
     inputs.jumpPressed = false;
     inputs.keyPressed = false;
+  };
+
+  window.onmousedown = (e) => {
+    inputs.keyPressed = true;
   };
 
   window.onkeydown = (e) => {
@@ -644,6 +1226,9 @@ class MarioSprite extends AnimatedSprite {
         break;
       case 'idle':
         this.object.range = {start: 0, end: 0};
+        break;
+      case 'victory':
+        this.object.range = {start: 15, end: 15};
         break;
       case 'jump':
         this.object.range = {start: 10, end: 10};
@@ -755,7 +1340,7 @@ class Level1 extends LevelCreator {
       chunk: [
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m3],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,en,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,en,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -776,7 +1361,7 @@ class Level1 extends LevelCreator {
 
     const m1 = {
       chunk: [
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
+        [__,__,__,__,gg,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -811,10 +1396,10 @@ module.exports = Level1;
 const Shape = __webpack_require__(0);
 const Sprite = __webpack_require__(3);
 
-const Coin = __webpack_require__(24);
-const ItemBlock = __webpack_require__(25);
-const Player = __webpack_require__(23);
-const Galoomba = __webpack_require__(26);
+const Coin = __webpack_require__(14);
+const ItemBlock = __webpack_require__(16);
+const Player = __webpack_require__(5);
+const Galoomba = __webpack_require__(18);
 const GoalTape = __webpack_require__(20);
 
 class Level {
@@ -876,15 +1461,15 @@ class Level {
     const go = {entity: 'goal'};
     const gg = {
       chunk: [
-        [bt,__,ft,go,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,__,fm,__,__],
-        [bm,tt,fm,__,__],
+        [bt,__,ft],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,__,fm],
+        [bm,tt,fm],
       ],
       sheet: objectSheet
     };
@@ -950,23 +1535,27 @@ class Level {
         this.colliders.push(itemBlock.shape);
         return;
       case 'enemy':
-        this.entities.enemies.push(new Galoomba({pos: {x, y}, width: 32, height: 32}, [], this.ctx));
+        let enemy = new Galoomba({pos: {x, y}, width: 32, height: 32}, [], this.ctx);
+        this.entities.enemies.push(enemy);
+        this.colliders.push(enemy.trigger);
         return;
       case 'tape':
         const tape = new GoalTape({x, y}, this.ctx);
         this.tiles.push(tape);
         this.colliders.push(tape.collider);
-        return;
-      case 'goal':
+
         let newCollider = new Shape({
-          pos: {x, y},
+          pos: {x: x + 32, y},
           width: 32,
           height: 1028,
           color: 'rgba(0,0,0,0)'},
           this.ctx,
-          'trigger'
+          'trigger',
+          tape
         );
         this.colliders.push(newCollider);
+        return;
+      case 'goal':
         return;
       case 'kill':
         this.colliders.push(new Shape({pos: {x, y}, width: 10000, height: 32}, this.ctx, 'kill'));
@@ -1024,7 +1613,43 @@ module.exports = Level;
 
 
 /***/ }),
-/* 14 */,
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const CoinSprite = __webpack_require__(15);
+
+class Coin {
+  constructor({ctx, pos}) {
+    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'coin', this);
+    this.vel = {x: 1, y: 1};
+
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
+
+    this.animation = {state: 'idle'};
+    this.status = {remove: false};
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    return new CoinSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
+  }
+
+  update() {
+    this.sprite.update();
+  }
+
+  die() {
+    this.status.remove = true;
+  }
+}
+
+module.exports = Coin;
+
+
+/***/ }),
 /* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1070,7 +1695,43 @@ module.exports = CoinSprite;
 
 
 /***/ }),
-/* 16 */,
+/* 16 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const ItemBlockSprite = __webpack_require__(17);
+
+class ItemBlock {
+  constructor({ctx, pos}) {
+    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'block', this);
+    this.vel = {x: 1, y: 1};
+
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
+
+    this.animation = {state: 'idle'};
+    this.status = {remove: false};
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/misc_objects.png';
+    return new ItemBlockSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
+  }
+
+  update() {
+    this.sprite.update();
+  }
+
+  die() {
+    this.status.remove = true;
+  }
+}
+
+module.exports = ItemBlock;
+
+
+/***/ }),
 /* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1116,7 +1777,64 @@ module.exports = ItemBlockSprite;
 
 
 /***/ }),
-/* 18 */,
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const MovingObject = __webpack_require__(2);
+const GaloombaSprite = __webpack_require__(19);
+
+class Galoomba extends MovingObject {
+  constructor(shapeParameters, colliders, ctx) {
+    super(shapeParameters, colliders, ctx);
+    this.pos = shapeParameters.pos;
+    this.ctx = ctx;
+    this.sprite = this.createSprite();
+    this.trigger = this.createTrigger();
+    this.input.x = -1;
+    this.stats.walkSpeed = 0.5;
+    this.animation.state = 'walk';
+    this.status.active = false;
+  }
+
+  createSprite() {
+    let image = new Image();
+    image.src = 'assets/images/galoomba.png';
+    return new GaloombaSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
+  }
+
+  createTrigger() {
+    const trigger = new Shape({
+      pos: {x : (this.pos.x - 384), y: this.pos.y},
+      width: 32,
+      height: 512},
+      this.ctx,
+      "trigger",
+      this);
+    return trigger;
+  }
+
+  update() {
+    if (this.status.active) {
+      super.update();
+      this.sprite.update();
+    }
+  }
+
+  triggered() {
+    this.status.active = true;
+  }
+
+  die() {
+    //re add trigger on death
+    super.die();
+  }
+}
+
+module.exports = Galoomba;
+
+
+/***/ }),
 /* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1184,7 +1902,8 @@ class GoalTape {
       height: 32,
       color: 'rgba(0,0,0,0)'},
       this.ctx,
-      'trigger'
+      'trigger',
+      this
     );
     return newCollider;
   }
@@ -1215,592 +1934,13 @@ class GoalTape {
     // this.sprite.object.pos.y -= 2;
   }
 
+  triggered(collidee) {
+    collidee.victory();
+  }
+
 }
 
 module.exports = GoalTape;
-
-
-/***/ }),
-/* 21 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Util = __webpack_require__(4);
-const util = new Util();
-const Shape = __webpack_require__(0);
-
-const Collision = __webpack_require__(22);
-const SFX = __webpack_require__(9);
-const sfx = new SFX();
-
-class MovingObject {
-  constructor(shapeParameters, colliders, ctx, enemies) {
-    this.shape = new Shape(shapeParameters, ctx);
-    this.vel = {x: 0, y: 0};
-    this.input = {x: 0, y: 0, jump: false};
-
-    this.stats = {
-      walkSpeed: 3.05,
-      runSpeed: 5.05,
-      pSpeed: 7.25,
-      groundAcc: 0.0525,
-      airAcc: 0.035,
-      minJump: -4.75,
-      jump: -8.45,
-      grav: 0.2625
-    };
-    this.animation = {
-      face: 'right',
-      state: 'idle'
-    };
-    this.enemies = enemies;
-    this.colliders = colliders;
-    this.collision = new Collision(this, ctx);
-
-    this.status = {grounded: false, running: false, pMeter: 0, pRun: false, alive: true, remove: false};
-  }
-
-  update() {
-    this.movePos();
-    this.calcVel();
-    this.shape.render();
-    if (this.status.alive) {
-      this.collision.collisions();
-    }
-  }
-
-  speedType() {
-    if (this.collision.grounded && this.status.ducking) {
-      this.status.pMeter = 0;
-      return 0;
-    }
-    if (Math.abs(this.vel.x) + 0.2 > this.stats.runSpeed && this.status.running && this.collision.grounded) {
-      this.status.pMeter = util.lerp(this.status.pMeter, 1, 0.5);
-    } else if (this.collision.grounded){
-      this.status.pMeter = util.lerp(this.status.pMeter, 0, 0.75);
-    }
-    if (this.status.pMeter > 0.9) {
-      this.status.pRun = true;
-      return this.stats.pSpeed;
-    } else {
-      this.status.pRun = false;
-      return (this.status.running) ? this.stats.runSpeed : this.stats.walkSpeed;
-    }
-  }
-
-  calcVel() {
-    let acc = (this.collision.grounded) ? this.stats.groundAcc : this.stats.airAcc;
-    let speed = this.speedType();
-    this.vel.x = util.lerp(this.vel.x, (this.input.x * speed), acc);
-    this.vel.y += this.stats.grav;
-  }
-
-  minJump() {
-    this.vel.y = this.stats.minJump;
-  }
-  jump() {
-    this.vel.y = this.stats.jump;
-  }
-
-  movePos() {
-    this.shape.pos.x += this.vel.x;
-    this.shape.pos.y += this.vel.y;
-  }
-
-  die() {
-    this.status.alive = false;
-    setTimeout(() => this.remove(), 1250);
-  }
-
-  remove() {
-    this.status.remove = true;
-  }
-
-}
-
-module.exports = MovingObject;
-
-
-/***/ }),
-/* 22 */
-/***/ (function(module, exports) {
-
-class Collision {
-  constructor(object, ctx) {
-    this.ctx = ctx;
-    this.raycastAmount = 4;
-    //Prevents a hit with a collider below the square
-    this.skin = 1;
-
-    this.object = object;
-    this.shape = object.shape;
-    this.vel = object.vel;
-
-    this.enemies = object.enemies || [];
-    this.colliders = object.colliders;
-    this.grounded = false;
-  }
-
-  collisions() {
-    this.horizontalCollisions();
-    this.grounded = this.verticalCollisions();
-  }
-
-  //---
-
-  horizontalCollisions() {
-    for (var i = 0; i < this.raycastAmount; i++) {
-      let startX;
-      let endX;
-
-      let spacing = (i * ((this.shape.height - this.skin) / (this.raycastAmount - 1))) + (this.skin / 2);
-
-      if (this.vel.x > 0) {
-        startX = {
-          x: this.shape.calcCenter().x + (this.shape.width / 2),
-          y: this.shape.pos.y + spacing
-        };
-        endX = {
-          x: this.shape.calcCenter().x + (this.shape.width / 2) + Math.abs(this.object.vel.x),
-          y: this.shape.pos.y + spacing
-        };
-      } else {
-        startX = {
-          x: this.shape.calcCenter().x - (this.shape.width / 2),
-          y: this.shape.pos.y + spacing
-        };
-        endX = {
-          x: this.shape.calcCenter().x - (this.shape.width / 2) - Math.abs(this.object.vel.x),
-          y: this.shape.pos.y + spacing
-        };
-      }
-
-      let hit = this.raycast(startX, endX, 'horizontal');
-      if (hit) {
-        this.parseHorizontalCollision(hit);
-      }
-    }
-  }
-
-  parseHorizontalCollision(hit) {
-    if (hit.collider) {
-      switch (hit.collider.type) {
-        case 'block':
-          this.handleHorizontalCollision(hit);
-          break;
-        case 'trigger':
-          this.handleTrigger();
-          break;
-        case 'coin':
-          hit.collider.owner.die();
-          break;
-        case 'kill':
-          this.handleTrigger();
-          this.object.die();
-          break;
-        case 'through':
-          break;
-        default:
-
-      }
-    }
-    if (hit.enemy) {
-      this.object.damage();
-    }
-  }
-
-  handleHorizontalCollision(hit) {
-    if (this.vel.x > 0) {
-      this.shape.pos.x = (hit.collider.calcCenter().x - hit.collider.width / 2) - this.shape.width;
-    } else {
-      this.shape.pos.x = (hit.collider.calcCenter().x + hit.collider.width / 2);
-    }
-    this.vel.x = 0;
-  }
-
-  //---
-
-  verticalCollisions() {
-    let anyCollisions = false;
-
-    for (var i = 0; i < this.raycastAmount; i++) {
-      let startY;
-      let endY;
-
-      let spacing = (i * ((this.shape.width) / (this.raycastAmount - 1)));
-
-      if (this.vel.y > 0) {
-        startY = {
-          x: this.shape.pos.x + spacing,
-          y: this.shape.calcCenter().y + (this.shape.height / 2)
-        };
-        endY = {
-          x: this.shape.pos.x + spacing,
-          y: this.shape.calcCenter().y + (this.shape.height / 2) + Math.abs(this.object.vel.y)
-        };
-      } else {
-        startY = {
-          x: this.shape.pos.x + spacing,
-          y: this.shape.calcCenter().y - (this.shape.height / 2)
-        };
-        endY = {
-          x: this.shape.pos.x + spacing,
-          y: this.shape.calcCenter().y - (this.shape.height / 2) - Math.abs(this.object.vel.y)
-        };
-      }
-
-      let hit = this.raycast(startY, endY, 'vertical');
-      if (hit) {
-        anyCollisions = this.parseVerticalCollision(hit);
-      }
-    }
-
-    return anyCollisions;
-  }
-
-  parseVerticalCollision(hit) {
-    if (hit.collider) {
-      switch (hit.collider.type) {
-        case 'block':
-          this.handleVerticalCollision(hit);
-          return true;
-        case 'trigger':
-          this.handleTrigger();
-          break;
-        case 'coin':
-          hit.collider.owner.die();
-          break;
-        case 'kill':
-          this.object.die();
-          break;
-        case 'through':
-          if (this.object.vel.y > 0) {
-            this.handleVerticalCollision(hit);
-            return true;
-          }
-        default:
-
-      }
-    } else {
-      this.handleVerticalCollisionEnemy(hit);
-    }
-  }
-
-  handleVerticalCollision(hit) {
-    if (this.vel.y > 0) {
-      this.shape.pos.y = (hit.collider.calcCenter().y - hit.collider.height / 2) - this.shape.height;
-    } else {
-      this.shape.pos.y = (hit.collider.calcCenter().y + hit.collider.height / 2);
-    }
-
-    this.vel.y = 0;
-  }
-
-  handleVerticalCollisionEnemy(hit) {
-    if (this.vel.y > 0) {
-      hit.enemy.die();
-      this.object.minJump();
-    } else {
-      this.object.damage();
-    }
-  }
-
-  //---
-
-  checkCollision(point, type) {
-    //checks if point is within any of the colliders
-    for (var i = 0; i < this.colliders.length; i++) {
-
-      if (point.y > this.colliders[i].calcCenter().y - (this.colliders[i].height / 2)
-       && point.y < this.colliders[i].calcCenter().y + (this.colliders[i].height / 2)) {
-
-        if (point.x > this.colliders[i].calcCenter().x - (this.colliders[i].width / 2)
-         && point.x < this.colliders[i].calcCenter().x + (this.colliders[i].width / 2)) {
-
-          return { collider: this.colliders[i]};
-
-        }
-
-      }
-
-    }
-  }
-
-  checkCollisionEnemy(point) {
-    for (var i = 0; i < this.enemies.length; i++) {
-      let collider = this.enemies[i].shape;
-      if (point.y > collider.calcCenter().y - (collider.height / 2)
-       && point.y < collider.calcCenter().y + (collider.height / 2)) {
-
-        if (point.x > collider.calcCenter().x - (collider.width / 2)
-         && point.x < collider.calcCenter().x + (collider.width / 2)) {
-
-          return { enemy: this.enemies[i]};
-
-        }
-
-      }
-
-    }
-  }
-
-  handleTrigger() {
-    this.object.die();
-  }
-
-  //---
-
-  raycast(start, end, type) {
-    // this.renderRaycast(start, end, 'red');
-    return this.checkCollision(end, type) || this.checkCollisionEnemy(end);
-  }
-
-  renderRaycast(start, end, color) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(start.x, start.y);
-    this.ctx.lineTo(end.x, end.y);
-    this.ctx.stroke();
-  }
-}
-
-module.exports = Collision;
-
-
-/***/ }),
-/* 23 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const MovingObject = __webpack_require__(21);
-const Input = __webpack_require__(10);
-const MarioSprite = __webpack_require__(11);
-
-class Player extends MovingObject {
-  constructor(shapeParameters, colliders, ctx, enemies) {
-    // shapeParameters.color = 'rgba(255,255,255,0.5)';
-    super(shapeParameters, colliders, ctx, enemies);
-    this.ctx = ctx;
-    this.sprite = this.createSprite();
-    this.inputFetcher = new Input();
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/mario.png';
-    return new MarioSprite({ctx: this.ctx, width: 64, height: 64, image: image, target: this, offset:{x:22, y:8}});
-  }
-
-  handleAnimation() {
-    if (!this.status.alive) {
-      this.animation.state = 'die';
-      return;
-    }
-    if (this.status.ducking) {
-      this.animation.state = 'duck';
-    } else {
-      if (this.input.x < -0) {
-        this.animation.face = "left";
-      } else if (this.input.x > 0) {
-        this.animation.face = "right";
-      }
-      if (!this.collision.grounded) {
-        if (this.status.pRun) {
-          this.animation.state = "runJump";
-        } else {
-          if (this.vel.y > 0) {
-            this.animation.state = "fall";
-          } else {
-            this.animation.state = "jump";
-          }
-        }
-      }
-
-      if (this.collision.grounded) {
-        if (this.vel.x < 0.25 && this.vel.x > -0.25) {
-          if (this.input.y === 1) {
-            this.animation.state = "lookUp";
-          } else {
-            this.animation.state = "idle";
-          }
-        }
-        if (this.vel.x > 0.25) {
-          this.animation.state = (!this.status.pRun) ? "walk" : "run";
-        }
-        if (this.vel.x < -0.25) {
-          this.animation.state = (!this.status.pRun) ? "walk" : "run";
-        }
-        if (this.vel.x < -0.25 && this.input.x > 0
-          || this.vel.x > 0.25 && this.input.x < 0) {
-            this.animation.state = "skid";
-        }
-      }
-    }
-  }
-
-  handleInput() {
-    if (!this.inputFetcher.inputs.leftHeld
-      && !this.inputFetcher.inputs.rightHeld) {
-      this.input.x = 0;
-    }
-    if (this.inputFetcher.inputs.leftHeld
-      && !this.inputFetcher.inputs.rightHeld) {
-      this.input.x = -1;
-    }
-    if (!this.inputFetcher.inputs.leftHeld
-      && this.inputFetcher.inputs.rightHeld) {
-      this.input.x = 1;
-    }
-    if (this.inputFetcher.inputs.jumpPressed
-      && this.collision.grounded) {
-      this.jump();
-      // sfx.sounds.jump.play();
-    }
-    if (this.inputFetcher.inputs.jumpReleased
-      && this.vel.y < this.stats.minJump
-      && !this.collision.grounded) {
-      this.minJump();
-    }
-    this.status.running = this.inputFetcher.inputs.runHeld;
-    if (this.collision.grounded) {
-      this.status.ducking = this.inputFetcher.inputs.downHeld;
-    }
-
-    if (this.inputFetcher.inputs.upHeld) {
-      this.input.y = 1;
-    } else {
-      this.input.y = 0;
-    }
-  }
-
-  update(){
-    if (this.status.alive) {
-      this.handleInput();
-      this.inputFetcher.update();
-    }
-    this.sprite.update();
-    this.handleAnimation();
-    super.update();
-  }
-
-  damage() {
-    this.die();
-  }
-
-  die() {
-    if (this.status.alive) {
-      super.die();
-      this.jump();
-      this.input.x = 0;
-      this.vel.x = 0;
-    }
-  }
-}
-
-module.exports = Player;
-
-
-/***/ }),
-/* 24 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Shape = __webpack_require__(0);
-const CoinSprite = __webpack_require__(15);
-
-class Coin {
-  constructor({ctx, pos}) {
-    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'coin', this);
-    this.vel = {x: 1, y: 1};
-
-    this.ctx = ctx;
-    this.sprite = this.createSprite();
-
-    this.animation = {state: 'idle'};
-    this.status = {remove: false};
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/misc_objects.png';
-    return new CoinSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
-  }
-
-  update() {
-    this.sprite.update();
-  }
-
-  die() {
-    this.status.remove = true;
-  }
-}
-
-module.exports = Coin;
-
-
-/***/ }),
-/* 25 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const Shape = __webpack_require__(0);
-const ItemBlockSprite = __webpack_require__(17);
-
-class ItemBlock {
-  constructor({ctx, pos}) {
-    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'block', this);
-    this.vel = {x: 1, y: 1};
-
-    this.ctx = ctx;
-    this.sprite = this.createSprite();
-
-    this.animation = {state: 'idle'};
-    this.status = {remove: false};
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/misc_objects.png';
-    return new ItemBlockSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
-  }
-
-  update() {
-    this.sprite.update();
-  }
-
-  die() {
-    this.status.remove = true;
-  }
-}
-
-module.exports = ItemBlock;
-
-
-/***/ }),
-/* 26 */
-/***/ (function(module, exports, __webpack_require__) {
-
-const MovingObject = __webpack_require__(21);
-const GaloombaSprite = __webpack_require__(19);
-
-class Galoomba extends MovingObject {
-  constructor(shapeParameters, colliders, ctx) {
-    super(shapeParameters, colliders, ctx);
-    this.ctx = ctx;
-    this.sprite = this.createSprite();
-    this.input.x = -1;
-    this.stats.walkSpeed = 0.5;
-    this.animation.state = 'walk';
-  }
-
-  createSprite() {
-    let image = new Image();
-    image.src = 'assets/images/galoomba.png';
-    return new GaloombaSprite({ctx: this.ctx, image: image, target: this, numberOfFrames: 4});
-  }
-
-  update() {
-    super.update();
-    this.sprite.update();
-  }
-}
-
-module.exports = Galoomba;
 
 
 /***/ })
