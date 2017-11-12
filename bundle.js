@@ -277,7 +277,7 @@ class MovingObject {
 
   die() {
     this.status.alive = false;
-    setTimeout(() => this.remove(), 1250);
+    setTimeout(() => this.remove(), 3000);
   }
 
   remove() {
@@ -369,6 +369,7 @@ class Player extends MovingObject {
     this.sprite = this.createSprite();
     this.inputFetcher = new Input();
     this.status.victory = false;
+    this.status.move = true;
   }
 
   createSprite() {
@@ -464,9 +465,18 @@ class Player extends MovingObject {
       this.handleInput();
       this.inputFetcher.update();
     }
+    if (this.status.victory) {
+      if (!this.collision.grounded) {
+        this.vel.x = .26;
+      }
+    }
     this.sprite.update();
     this.handleAnimation();
     super.update();
+    if (!this.status.move) {
+      this.vel.x = 0;
+      this.vel.y = 0;
+    }
   }
 
   damage() {
@@ -491,9 +501,14 @@ class Player extends MovingObject {
   die() {
     if (this.status.alive) {
       super.die();
-      this.jump();
+
+      this.status.move = false;
+      setTimeout(() => {
+        this.jump();
+        this.status.move = true;
+      }, 500);
       this.input.x = 0;
-      this.vel.x = 0;
+
     }
   }
 }
@@ -556,6 +571,7 @@ class Game {
     this.colliders = [];
     this.tiles = [];
     this.entities = {player: null, enemies: []};
+    this.ui = [];
 
     this.screen = {alpha: 3, rate: -0.075, loading: true};
 
@@ -627,18 +643,27 @@ class Game {
 
   //---
 
-  startAudio() {
-    var audioIntro = new Audio('assets/audio/music/overworld_intro.wav');
-    var audioMain = new Audio('assets/audio/music/overworld_main.wav');
-    this.currentSong = audioIntro;
-    audioIntro.play();
-    const songs = [audioIntro, audioMain];
-    if (this.dev) {
-      songs.forEach((song) => {
-        song.volume = 0;
-      });
+  getSongs() {
+    var intro = new Audio('assets/audio/music/overworld_intro.wav');
+    var main = new Audio('assets/audio/music/overworld_main.wav');
+    var playerDown = new Audio('assets/audio/music/player_down.wav');
+    var courseClear = new Audio('assets/audio/music/course_clear_fanfare.wav');
+    this.songs = [intro, main, playerDown, courseClear];
+  }
+
+  changeSong(newSong, loop) {
+    if (this.currentSong === newSong && !loop) {
+      return;
     }
-    return songs;
+    this.currentSong.pause();
+    this.currentSong = newSong;
+    this.currentSong.currentTime = 0;
+    this.currentSong.play();
+  }
+
+  startAudio() {
+    this.currentSong = this.songs[0];
+    this.currentSong.play();
   }
 
   pauseAudio() {
@@ -648,19 +673,18 @@ class Game {
     this.currentSong.play();
   }
 
-  handleAudio(audioIntro, audioMain) {
+  handleAudio() {
+    const audioIntro = this.songs[0];
+    const audioMain = this.songs[1];
     if (this.dev) {
       this.songs.forEach((song) => {
         song.volume = 0;
       });
     }
-    if (audioIntro && audioIntro.currentTime >= audioIntro.duration  -0.075 ||
-      audioMain.currentTime >= audioMain.duration - 0.075) {
-        this.currentSong = audioMain;
-        audioIntro.currentTime = 0;
-        audioIntro.pause();
-        audioMain.currentTime = 0;
-        audioMain.play();
+    if (this.currentSong.currentTime >= this.currentSong.duration  -0.075) {
+      if (this.songs[0].src === this.currentSong.src || this.songs[1].src === this.currentSong.src) {
+        this.changeSong(this.songs[1], true);
+      }
     }
   }
 
@@ -671,6 +695,7 @@ class Game {
     this.colliders = [];
     this.tiles = [];
     this.entities = {player: null, enemies: []};
+    this.ui = [];
   }
 
   loadScreen(ctx) {
@@ -690,8 +715,10 @@ class Game {
   }
 
   restart() {
+    if (this.levelEnded) {
+      this.endLevel();
+    }
     this.destroyEverything();
-
     this.start(this.canvasEl);
     cancelAnimationFrame(this.req);
   }
@@ -746,28 +773,43 @@ class Game {
   //---
 
   levelStart() {
-    this.songs = this.startAudio();
+    this.startAudio();
   }
 
-  beginEndLevel() {
+  beginEndLevel(ctx) {
     this.levelEnded = true;
     this.pauseAudio();
     var courseClearFanfare = new Audio('assets/audio/music/course_clear_fanfare.wav');
     courseClearFanfare.play();
     this.songs.push(courseClearFanfare);
     setTimeout(() => {
-      this.endLevel();
-    }, 8853);
+      this.createImage(ctx);
+      border.x.max = -offset.x + this.xDim;
+      this.screen = {alpha: 0, rate: 0.004, loading: true};
+    }, 7253);
+  }
+
+  createImage(ctx, imageStr) {
+    let image = new Image();
+    // image.src = `assets/images/${imageStr}`;
+    image.src = 'assets/images/thanks_for_playing.png';
+    this.ui.push(new Sprite({
+      ctx,
+      width: 256,
+      height: 64,
+      pos: {x: -offset.x + (this.xDim / 2), y: -offset.y + (this.yDim / 2)},
+      image
+    }));
   }
 
   endLevel() {
-    this.screen = {alpha: 3, rate: -0.075, loading: true};
     this.entities.player.status.victory = false;
     this.input.pausePressed = false;
     this.input.keyPressed = false;
     this.levelEnded = false;
     this.gameStart = true;
     this.pause = true;
+    this.screen = {alpha: 3, rate: -0.075, loading: true};
   }
 
   start() {
@@ -779,11 +821,12 @@ class Game {
     this.entities = this.level.entities;
     this.input = this.entities.player.inputFetcher.inputs;
 
+    this.getSongs();
+
+    let alpha2 = 0;
+
     const animateCallback = () => {
 
-      if (this.entities.player.status.victory && !this.levelEnded) {
-        this.beginEndLevel();
-      }
       if (!this.levelEnded) {
         this.handlePause(ctx, animateCallback);
       }
@@ -814,7 +857,7 @@ class Game {
 
 
       this.entities.enemies.forEach((entity, i) => {
-        if (entity.status.remove || this.entities.player.victory) {
+        if (entity.status.remove || this.entities.player.status.victory) {
           this.entities.enemies.splice(i, 1);
         }
         entity.update(ctx);
@@ -827,24 +870,30 @@ class Game {
       });
 
       if (this.levelEnded) {
-        this.screen.alpha += 0.005;
-        ctx.fillStyle = `rgba(0,0,0,${this.screen.alpha})`;
+        alpha2 += 0.005;
+        ctx.fillStyle = `rgba(0,0,0,${alpha2})`;
         ctx.fillRect(-offset.x, -offset.y, this.xDim, this.yDim);
+      } else {
+        alpha2 = 0;
       }
-
+      if (this.entities.player.status.victory && !this.levelEnded) {
+        this.beginEndLevel(ctx);
+      }
+      this.ui.forEach((el) => {
+        el.update();
+      });
       this.entities.player.update();
 
-      if (this.dev) {
-        this.devMethods(this.entities.player);
+      if (!this.entities.player.status.alive) {
+        this.changeSong(this.songs[2]);
       }
-
       if (this.entities.player.status.remove) {
+        this.levelEnded = true;
         this.screen.loading = true;
       }
       if (this.screen.loading) {
         this.loadScreen(ctx);
       }
-
       this.req = requestAnimationFrame(animateCallback);
 
     };
@@ -1322,8 +1371,8 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,ww,to,we,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,wl,mi,wr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,ww,to,we,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,bl],
+        [__,__,__,wl,mi,wr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,bl],
         [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
         [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
         [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
@@ -1361,7 +1410,7 @@ class Level1 extends LevelCreator {
 
     const m1 = {
       chunk: [
-        [__,__,__,__,gg,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
