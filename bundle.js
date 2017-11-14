@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 6);
+/******/ 	return __webpack_require__(__webpack_require__.s = 7);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -183,14 +183,34 @@ module.exports = AnimatedSprite;
 
 /***/ }),
 /* 2 */
+/***/ (function(module, exports) {
+
+class SFX {
+  constructor() {
+    const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
+    const coin = new Audio ("assets/audio/sfx/smw_coin.wav");
+    const stomp = new Audio ("assets/audio/sfx/smw_stomp.wav");
+    this.sounds = {
+      jump,
+      coin,
+      stomp
+    };
+  }
+}
+
+module.exports = SFX;
+
+
+/***/ }),
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(4);
+const Util = __webpack_require__(5);
 const util = new Util();
 const Shape = __webpack_require__(0);
 
-const Collision = __webpack_require__(8);
-const SFX = __webpack_require__(9);
+const Collision = __webpack_require__(9);
+const SFX = __webpack_require__(2);
 const sfx = new SFX();
 
 class MovingObject {
@@ -290,7 +310,7 @@ module.exports = MovingObject;
 
 
 /***/ }),
-/* 3 */
+/* 4 */
 /***/ (function(module, exports) {
 
 class Sprite {
@@ -332,7 +352,7 @@ module.exports = Sprite;
 
 
 /***/ }),
-/* 4 */
+/* 5 */
 /***/ (function(module, exports) {
 
 const Util = function() {
@@ -353,14 +373,14 @@ module.exports = Util;
 
 
 /***/ }),
-/* 5 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const MovingObject = __webpack_require__(2);
+const MovingObject = __webpack_require__(3);
 const Input = __webpack_require__(10);
 const MarioSprite = __webpack_require__(11);
 
-const SFX = __webpack_require__(9);
+const SFX = __webpack_require__(2);
 const sfx = new SFX();
 
 class Player extends MovingObject {
@@ -520,10 +540,10 @@ module.exports = Player;
 
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Game = __webpack_require__(7);
+const Game = __webpack_require__(8);
 
 const canvasEl = document.getElementsByTagName("canvas")[0];
 const volume = document.getElementById('volume');
@@ -537,17 +557,17 @@ new Game(canvasEl, volume);
 
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(4);
+const Util = __webpack_require__(5);
 const Shape = __webpack_require__(0);
 
-const MovingObject = __webpack_require__(2);
-const Player = __webpack_require__(5);
+const MovingObject = __webpack_require__(3);
+const Player = __webpack_require__(6);
 
 const AnimatedSprite = __webpack_require__(1);
-const Sprite = __webpack_require__(3);
+const Sprite = __webpack_require__(4);
 const Level = __webpack_require__(12);
 
 const util = new Util();
@@ -909,7 +929,7 @@ module.exports = Game;
 
 
 /***/ }),
-/* 8 */
+/* 9 */
 /***/ (function(module, exports) {
 
 class Collision {
@@ -926,16 +946,20 @@ class Collision {
     this.enemies = object.enemies || [];
     this.colliders = object.colliders;
     this.grounded = false;
+    this.walled = false;
+
   }
 
   collisions() {
-    this.horizontalCollisions();
+    this.walled = this.horizontalCollisions();
     this.grounded = this.verticalCollisions();
   }
 
   //---
 
   horizontalCollisions() {
+    let anyCollisions = false;
+
     for (var i = 0; i < this.raycastAmount; i++) {
       let startX;
       let endX;
@@ -964,9 +988,10 @@ class Collision {
 
       let hit = this.raycast(startX, endX, 'horizontal');
       if (hit) {
-        this.parseHorizontalCollision(hit);
+        anyCollisions = this.parseHorizontalCollision(hit);
       }
     }
+    return anyCollisions;
   }
 
   parseHorizontalCollision(hit) {
@@ -974,7 +999,13 @@ class Collision {
       switch (hit.collider.type) {
         case 'block':
           this.handleHorizontalCollision(hit);
-          break;
+          return true;
+          case 'itemBlock':
+            if (hit.collider.owner.animation.state != 'flip') {
+              this.handleHorizontalCollision(hit);
+              return true;
+            }
+            break;
         case 'trigger':
           this.handleTrigger(hit.collider);
           break;
@@ -1051,6 +1082,15 @@ class Collision {
         case 'block':
           this.handleVerticalCollision(hit);
           return true;
+        case 'itemBlock':
+          if (hit.collider.owner.animation.state != 'flip') {
+            if (this.object.vel.y < 0) {
+              hit.collider.owner.flip();
+            }
+            this.handleVerticalCollision(hit);
+            return true;
+          }
+          break;
         case 'trigger':
           this.handleTrigger(hit.collider);
           break;
@@ -1086,7 +1126,11 @@ class Collision {
   handleVerticalCollisionEnemy(hit) {
     if (this.vel.y > 0) {
       hit.enemy.die();
-      this.object.minJump();
+      if (this.object.inputFetcher.inputs.jumpHeld) {
+        this.object.jump();
+      } else {
+        this.object.minJump();
+      }
     } else {
       this.object.damage();
     }
@@ -1157,26 +1201,6 @@ module.exports = Collision;
 
 
 /***/ }),
-/* 9 */
-/***/ (function(module, exports) {
-
-class SFX {
-  constructor() {
-    const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
-    const coin = new Audio ("assets/audio/sfx/smw_coin.wav");
-    const stomp = new Audio ("assets/audio/sfx/smw_stomp.wav");
-    this.sounds = {
-      jump,
-      coin,
-      stomp
-    };
-  }
-}
-
-module.exports = SFX;
-
-
-/***/ }),
 /* 10 */
 /***/ (function(module, exports) {
 
@@ -1186,6 +1210,7 @@ const Input = function (entity) {
     leftHeld: false,
     rightHeld: false,
     jumpPressed: false,
+    jumpHeld: false,
     jumpReleased: false,
     jumpFresh: true,
     runHeld: false,
@@ -1218,9 +1243,12 @@ const Input = function (entity) {
       inputs.rightHeld = true;
     }
 
-    if ((e.keyCode === 74 || e.keyCode === 90) && inputs.jumpFresh ) {
-      inputs.jumpPressed = true;
-      inputs.jumpFresh = false;
+    if (e.keyCode === 74 || e.keyCode === 90 || e.keyCode === 32) {
+      inputs.jumpHeld = true;
+      if (inputs.jumpFresh) {
+        inputs.jumpPressed = true;
+        inputs.jumpFresh = false;
+      }
     }
     if (e.keyCode === 75 || e.keyCode === 88) {
       inputs.runHeld = true;
@@ -1247,7 +1275,8 @@ const Input = function (entity) {
       inputs.rightHeld = false;
     }
 
-    if (e.keyCode === 74 || e.keyCode === 90) {
+    if (e.keyCode === 74 || e.keyCode === 90  || e.keyCode === 32) {
+      inputs.jumpHeld = false;
       inputs.jumpReleased = true;
       inputs.jumpFresh = true;
     }
@@ -1350,26 +1379,10 @@ class Level1 extends LevelCreator {
     let { pl, en, ki, tl, to, tr, ml, mi,
           mr, bl, bo, br, __, ww, we, wl,
           wr, ch, bt, bm, ft, fm, tt, go,
-          gg, ib, co
+          gg, ib, co, tw, wt
         } = this.getKeys();
 
-    const tw = {
-      chunk: [
-        [tl,to,tr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-        [ml,mi,mr],
-      ]
-    };
-
-    const m3 = {
+    const m4 = {
       chunk: [
         [__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -1380,12 +1393,35 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,ww,to,we,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,bl],
         [__,__,__,wl,mi,wr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,bl],
-        [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
-        [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
+        [mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      ]
+    };
+
+    const m3 = {
+      chunk: [
+        [__,__,__,__,__,__,__,__,wt,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m4],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,wt,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,ch,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,ww,to,__],
+        [__,__,ww,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,we,en,en,en,en,en,en,en,en,en,wl,mi,__],
+        [__,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,ib,ib,ib,ib,ib,ib,ib,ib,ib,wl,mi,__],
+        [__,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__,__,__,__,__,__,__,__,__,wl,mi,__],
+        [__,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__,__,__,__,__,__,__,__,__,wl,mi,__],
+        [__,__,wl,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__,__,__,__,__,__,__,__,__,wl,mi,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -1403,7 +1439,7 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,tw,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,tw,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -1422,7 +1458,7 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,ib,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,tl,to,to,to,to,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,pl,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,en,__,__,__,__,__],
@@ -1450,11 +1486,11 @@ module.exports = Level1;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(3);
+const Sprite = __webpack_require__(4);
 
 const Coin = __webpack_require__(14);
 const ItemBlock = __webpack_require__(16);
-const Player = __webpack_require__(5);
+const Player = __webpack_require__(6);
 const Galoomba = __webpack_require__(18);
 const GoalTape = __webpack_require__(20);
 
@@ -1498,13 +1534,43 @@ class Level {
     const we = { row: 5, col: 0, collider: 'block'};
     const wl = { row: 3, col: 1, collider: 'block'};
     const wr = { row: 5, col: 1, collider: 'block'};
+    const wb = { row: 3, col: 2, collider: 'block'};
+    const wd = { row: 5, col: 2, collider: 'block'};
 
     //3 x 3 chunk
     const ch = {
       chunk: [
+        [ww,to,we],
+        [wl,mi,wr],
+        [wb,bo,wd],
+      ]
+    };
+
+    const tw = {
+      chunk: [
         [tl,to,tr],
         [ml,mi,mr],
-        [bl,bo,br],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+        [ml,mi,mr],
+      ]
+    };
+    const wt = {
+      chunk: [
+        [ww,to,we],
+        [wl,mi,wr],
+        [wl,mi,wr],
+        [wl,mi,wr],
+        [wl,mi,wr],
+        [wl,mi,wr],
+        [wl,mi,wr],
+        [wb,bo,wd],
       ]
     };
 
@@ -1529,15 +1595,16 @@ class Level {
       ],
       sheet: objectSheet
     };
-    const ib = { row: 0, col: 2, collider: 'block', sheet: objectSheet, entity: 'itemBlock'};
 
+
+    const ib = { row: 0, col: 2, collider: 'block', sheet: objectSheet, entity: 'itemBlock'};
     const co = { row: 0, col: 4, collider: false, sheet: objectSheet, entity: 'coin'};
 
     return {
       pl, en, ki, tl, to, tr, ml, mi,
       mr, bl, bo, br, __, ww, we, wl,
       wr, ch, bt, bm, ft, fm, tt, go,
-      gg, ib, co
+      gg, ib, co, tw, wt
     };
   }
 
@@ -1674,7 +1741,7 @@ module.exports = Level;
 
 const Shape = __webpack_require__(0);
 const CoinSprite = __webpack_require__(15);
-const SFX = __webpack_require__(9);
+const SFX = __webpack_require__(2);
 const sfx = new SFX();
 
 class Coin {
@@ -1762,7 +1829,7 @@ const ItemBlockSprite = __webpack_require__(17);
 
 class ItemBlock {
   constructor({ctx, pos}) {
-    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'block', this);
+    this.shape = new Shape({pos: pos, width: 32, height: 32}, ctx, 'itemBlock', this);
     this.vel = {x: 1, y: 1};
 
     this.ctx = ctx;
@@ -1780,6 +1847,31 @@ class ItemBlock {
 
   update() {
     this.sprite.update();
+  }
+
+  flip() {
+
+    if (this.resetTimer) {
+      clearTimeout(this.resetTimer);
+    }
+    //kinda lame :/
+    setTimeout(() => {
+      this.sprite.object.offset.y = 10;
+    }, 50);
+    setTimeout(() => {
+      this.sprite.object.offset.y = 2;
+      this.animation.state = 'flip';
+    }, 100);
+    setTimeout(() => {
+      this.sprite.object.offset.y = -1;
+    }, 150);
+    setTimeout(() => {
+      this.sprite.object.offset.y = 0;
+    }, 200);
+
+    this.resetTimer = setTimeout(() => {
+      this.animation.state = 'idle';
+    }, 3000);
   }
 
   die() {
@@ -1802,8 +1894,8 @@ class ItemBlockSprite extends AnimatedSprite {
     const image = new Image();
     image.src = 'assets/images/misc_objects.png';
     params.image = image;
-    params.col = 3;
-    params.ticksPerFrame = 12;
+    params.col = 2;
+    params.ticksPerFrame = 10;
     params.offset = {x: 0, y: 0};
     params.staticSpeed = true;
     super(params);
@@ -1813,7 +1905,10 @@ class ItemBlockSprite extends AnimatedSprite {
 
     switch (this.object.target.animation.state) {
       case 'idle':
-        this.object.range = {start: 0, end: 3};
+        this.object.range = {start: 0, end: 0};
+        break;
+      case 'flip':
+        this.object.range = {start: 0, end: 4};
         break;
       default:
 
@@ -1840,9 +1935,9 @@ module.exports = ItemBlockSprite;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const MovingObject = __webpack_require__(2);
+const MovingObject = __webpack_require__(3);
 const GaloombaSprite = __webpack_require__(19);
-const SFX = __webpack_require__(9);
+const SFX = __webpack_require__(2);
 const sfx = new SFX();
 
 class Galoomba extends MovingObject {
@@ -1879,6 +1974,18 @@ class Galoomba extends MovingObject {
     if (this.status.active) {
       super.update();
       this.sprite.update();
+      this.handleMovement();
+    }
+  }
+
+  handleMovement() {
+    if (this.collision.walled) {
+      this.input.x *= -1;
+    }
+    if (this.input.x < -0) {
+      this.animation.face = "right";
+    } else if (this.input.x > 0) {
+      this.animation.face = "left";
     }
   }
 
@@ -1942,7 +2049,7 @@ module.exports = GaloombaSprite;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(3);
+const Sprite = __webpack_require__(4);
 
 class GoalTape {
   constructor(pos, ctx) {
