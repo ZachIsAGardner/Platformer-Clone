@@ -132,6 +132,7 @@ class AnimatedSprite {
       numberOfFrames: numberOfFrames || 14,
       range: {start: 0, end: 3},
       target,
+      lastState: '',
       currentState: 'idle',
       offset: offset || {x: 0, y: 0},
       staticSpeed
@@ -386,6 +387,8 @@ const sfx = new SFX();
 class Player extends MovingObject {
   constructor(shapeParameters, colliders, ctx, enemies) {
     shapeParameters.color = 'rgba(255,255,255,0)';
+    shapeParameters.width = 20;
+    shapeParameters.height = 56;
     super(shapeParameters, colliders, ctx, enemies);
     this.name = "player";
     this.ctx = ctx;
@@ -393,6 +396,7 @@ class Player extends MovingObject {
     this.inputFetcher = new Input();
     this.status.victory = false;
     this.status.move = true;
+    this.canUnDuck = false;
   }
 
   createSprite() {
@@ -472,8 +476,19 @@ class Player extends MovingObject {
       this.minJump();
     }
     this.status.running = this.inputFetcher.inputs.runHeld;
+
     if (this.collision.grounded) {
-      this.status.ducking = this.inputFetcher.inputs.downHeld;
+      if (this.inputFetcher.inputs.downHeld) {
+        if (!this.status.ducking) {
+          this.duck();
+        }
+        this.status.ducking = true;
+      } else {
+        if (this.status.ducking) {
+          this.unDuck();
+        }
+        this.status.ducking = false;
+      }
     }
 
     if (this.inputFetcher.inputs.upHeld) {
@@ -504,6 +519,22 @@ class Player extends MovingObject {
 
   damage() {
     this.die();
+  }
+
+  duck() {
+    this.shape.height = 26;
+    this.shape.pos.y = this.shape.pos.y + 30;
+    this.sprite.object.offset.y += 30;
+    this.canUnDuck = true;
+  }
+
+  unDuck() {
+    if (this.canUnDuck) {
+      this.shape.height = 56;
+      this.sprite.object.offset.y -= 30;
+      this.shape.pos.y = this.shape.pos.y - 30;
+    }
+    this.canUnDuck = false;
   }
 
   victory() {
@@ -1348,6 +1379,7 @@ class MarioSprite extends AnimatedSprite {
     this.object.currentState = this.object.target.animation.state;
 
     if (this.object.currentState !== oldState) {
+      this.object.lastState = oldState;
       this.stateChange();
     }
   }
@@ -1645,7 +1677,7 @@ class Level {
   createEntity(type, x, y) {
     switch (type) {
       case 'player':
-        this.entities.player = new Player({pos: {x, y}, width: 20, height: 56}, [], this.ctx);
+        this.entities.player = new Player({pos: {x, y}}, [], this.ctx);
         return;
       case 'coin':
         const coin = new Coin({ctx: this.ctx, pos: {x, y}});
