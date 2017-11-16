@@ -213,7 +213,7 @@ class Sprite {
     this.row = row || 0;
     this.col = col || 0;
     this.pos = pos || {x: 0, y: 0};
-    this.offset = {x: 0, y: 0};
+    this.offset = offset || {x: 0, y: 0};
     this.special = special;
   }
 
@@ -222,14 +222,15 @@ class Sprite {
   }
 
   render() {
+
     this.ctx.drawImage(
       this.image,
-      this.row * this.width,
-      this.col * this.height,
+      this.row * 32,
+      this.col * 32,
       this.width,
       this.height,
-      this.pos.x - (this.width / 2),
-      this.pos.y - (this.height / 2),
+      this.pos.x - (this.width / 2) - this.offset.x,
+      this.pos.y - (this.height / 2) - this.offset.y,
       this.width,
       this.height
     );
@@ -253,7 +254,7 @@ const sfx = new SFX();
 
 class MovingObject {
   constructor(shapeParameters, colliders, ctx, enemies) {
-    this.shape = new Shape(shapeParameters, ctx);
+    this.shape = new Shape(shapeParameters, ctx, null, this);
     this.vel = {x: 0, y: 0};
     this.input = {x: 0, y: 0, jump: false};
 
@@ -494,6 +495,9 @@ class Player extends MovingObject {
   }
 
   update(){
+    // this.ctx.fillStyle = 'red';
+    // this.ctx.clearRect(this.shape.pos.x - 16, this.shape.pos.y - 16, 128, 128);
+
     if (this.status.alive && this.status.input) {
       this.handleInput();
       this.inputFetcher.update();
@@ -571,15 +575,27 @@ module.exports = Player;
 
 const Game = __webpack_require__(8);
 
-const canvasEl = document.getElementsByTagName("canvas")[0];
+const canvasBG = document.getElementById("background-canvas");
+const canvasMain = document.getElementById("main-canvas");
+const canvasEntities = document.getElementById("entities-canvas");
+const canvasFG = document.getElementById("foreground-canvas");
+const canvasUI = document.getElementById("ui-canvas");
+let canvases = {
+  bg: canvasBG,
+  main: canvasMain,
+  entities: canvasEntities,
+  fg: canvasFG,
+  ui: canvasUI
+};
+
 const volume = document.getElementById('volume');
 
-// canvasEl.width = window.innerWidth;
-// canvasEl.height = window.innerHeight;
-canvasEl.width = 768;
-canvasEl.height = 588;
+Object.entries(canvases).forEach((key) => {
+  key[1].width = 768;
+  key[1].height = 588;
+});
 
-new Game(canvasEl, volume);
+new Game(canvases, volume);
 
 
 /***/ }),
@@ -606,11 +622,13 @@ var border = {
 };
 
 class Game {
-  constructor(canvasEl, volume) {
-    this.canvasEl = canvasEl;
+  constructor(canvases, volume) {
+    this.canvasMain = canvases.main;
+    this.canvases = canvases;
+
     this.volume = volume;
-    this.xDim = this.canvasEl.width;
-    this.yDim = this.canvasEl.height;
+    this.xDim = this.canvasMain.width;
+    this.yDim = this.canvasMain.height;
     this.req = null;
     this.dev = true;
     this.pause = true;
@@ -647,8 +665,8 @@ class Game {
     }
   }
 
-  moveViewport(ctx, canvasEl, target) {
-    let cameraCenter = [-target.shape.pos.x + canvasEl.width / 2, (-target.shape.pos.y + canvasEl.height / 2) + 150];
+  moveViewport(ctx, canvasMain, target) {
+    let cameraCenter = [-target.shape.pos.x + canvasMain.width / 2, (-target.shape.pos.y + canvasMain.height / 2) + 150];
     if (target.status.alive) {
       offset.x = util.lerp(offset.x, cameraCenter[0], 0.075);
       // offset.y = util.lerp(offset.y, cameraCenter[1], 0.075);
@@ -656,7 +674,9 @@ class Game {
     this.checkBoundaries();
 
     //for pixel perfect movement round up or down whatever
-    ctx.setTransform(1, 0, 0, 1, offset.x, offset.y);
+    Object.entries(this.canvases).forEach((canvas) => {
+      canvas[1].getContext('2d').setTransform(1, 0, 0, 1, offset.x, offset.y);
+    });
   }
 
   createBackground(player, ctx) {
@@ -681,14 +701,17 @@ class Game {
 
   render(ctx) {
     //i have no idea why offset x and offset y have to be multiplied by -1
-    ctx.clearRect(-offset.x, -offset.y, this.xDim, this.yDim);
-    ctx.scale(2, 2);
+    Object.entries(this.canvases).forEach((canvas) => {
+      canvas[1].getContext('2d').clearRect(-offset.x, -offset.y, this.xDim, this.yDim);
+    });
+    // ctx.clearRect(-offset.x, -offset.y, this.xDim, this.yDim);
+    // ctx.scale(2, 2);
   }
 
   devMethods(player) {
     if (player.shape.pos.y > border.y.max) {
       player.vel.x, player.vel.y = 0;
-      player.shape.pos = {x: 0, y: 200};
+      // player.shape.pos = {x: 0, y: 200};
     }
   }
 
@@ -766,7 +789,7 @@ class Game {
       this.endLevel();
     }
     this.destroyEverything();
-    this.start(this.canvasEl);
+    this.start(this.canvasMain);
     cancelAnimationFrame(this.req);
   }
 
@@ -837,6 +860,7 @@ class Game {
     let image = new Image();
     // image.src = `assets/images/${imageStr}`;
     image.src = 'assets/images/thanks_for_playing.png';
+    ctx = this.canvases.ui.getContext('2d');
     this.ui.push(new Sprite({
       ctx,
       width: 256,
@@ -857,9 +881,9 @@ class Game {
   }
 
   start() {
-    const ctx = this.canvasEl.getContext("2d");
+    const ctx = this.canvasMain.getContext("2d");
 
-    this.level = new Level(ctx);
+    this.level = new Level(this.canvases);
     this.colliders = this.level.colliders;
     this.tiles = this.level.tiles;
     this.entities = this.level.entities;
@@ -870,17 +894,30 @@ class Game {
     let alpha2 = 0;
 
     const animateCallback = () => {
+      //Level conditions
 
       if (!this.levelEnded) {
-        this.handlePause(ctx, animateCallback);
+        this.handlePause(this.canvases.ui.getContext('2d'), animateCallback);
       }
       if (this.pause) {
         if (this.gameStart) {
-          this.waitForUser(ctx);
+          this.waitForUser(this.canvases.ui.getContext('2d'));
         }
         this.req = requestAnimationFrame(animateCallback);
         return;
       }
+
+      if (this.entities.player.status.victory && !this.levelEnded) {
+        this.beginEndLevel(ctx);
+      }
+
+      if (this.entities.player.status.remove) {
+        this.levelEnded = true;
+        this.screen.loading = true;
+      }
+
+      //---
+      //Music
 
       this.currentSong.volume = (this.volume.className === "active") ? 1 : 0;
       this.songs.forEach((song) => {
@@ -888,10 +925,20 @@ class Game {
       });
       this.handleAudio(this.songs[0], this.songs[1]);
 
+      if (!this.entities.player.status.alive) {
+        this.changeSong(this.songs[2]);
+      }
+
+      //---
+      //Main canvas operations
+
       this.render(ctx);
 
-      this.moveViewport(ctx, this.canvasEl, this.entities.player);
-      this.createBackground(this.entities.player, ctx);
+      this.moveViewport(ctx, this.canvasMain, this.entities.player);
+      this.createBackground(this.entities.player, this.canvases.bg.getContext("2d"));
+
+      //---
+      //Update level elements
 
       this.colliders.forEach((collider, i) => {
         if (collider.status.remove) {
@@ -904,13 +951,13 @@ class Game {
         tile.update(ctx);
       });
 
-
       this.entities.enemies.forEach((entity, i) => {
         if (entity.status.remove || this.entities.player.status.victory) {
           this.entities.enemies.splice(i, 1);
         }
-        entity.update(ctx);
+        entity.update();
       });
+
       this.entities.items.forEach((entity, i) => {
         if (entity.status.remove) {
           this.entities.items.splice(i, 1);
@@ -920,33 +967,36 @@ class Game {
 
       if (this.levelEnded) {
         alpha2 += 0.005;
-        ctx.fillStyle = `rgba(0,0,0,${alpha2})`;
-        ctx.fillRect(-offset.x, -offset.y, this.xDim, this.yDim);
+        this.canvases.main.getContext('2d').fillStyle = `rgba(0,0,0,${alpha2})`;
+        this.canvases.main.getContext('2d').fillRect(-offset.x, -offset.y, this.xDim, this.yDim);
       } else {
         alpha2 = 0;
       }
-      if (this.entities.player.status.victory && !this.levelEnded) {
-        this.beginEndLevel(ctx);
+      
+      this.entities.player.update();
+
+
+      //---
+      //Update ui elements
+
+      if (this.screen.loading) {
+        this.loadScreen(this.canvases.ui.getContext('2d'));
       }
+
+
       this.ui.forEach((el) => {
         el.update();
       });
-      this.entities.player.update();
 
-      if (!this.entities.player.status.alive) {
-        this.changeSong(this.songs[2]);
-      }
-      if (this.entities.player.status.remove) {
-        this.levelEnded = true;
-        this.screen.loading = true;
-      }
-      if (this.screen.loading) {
-        this.loadScreen(ctx);
-      }
+
+      //---
+      //Get new frame
+
       this.req = requestAnimationFrame(animateCallback);
 
     };
 
+    //Start getting frames
     animateCallback();
   }
 }
@@ -1411,7 +1461,7 @@ class Level1 extends LevelCreator {
 
     const m4 = {
       chunk: [
-        [__,__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,gg,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -1484,11 +1534,11 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,pl,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,tl,to,to,to,to,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,pl,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,en,__,__,__,__,__],
+        [__,__,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,en,__,__,__,__,__],
         [tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,we,__],
         [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
         [ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
@@ -1498,6 +1548,18 @@ class Level1 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [ki,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+      ]
+    };
+
+    const m7 = {
+      chunk: [
+        [__,__,__,__,__,gg,__,__],
+        [__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__],
+        [__,__,__,pl,__,__,__,__],
+        [__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__],
+        [__,__,__,bo,__,bo,bo,__],
       ]
     };
 
@@ -1522,8 +1584,8 @@ const Galoomba = __webpack_require__(18);
 const GoalTape = __webpack_require__(20);
 
 class Level {
-  constructor(ctx) {
-    this.ctx = ctx;
+  constructor(canvases) {
+    this.canvases = canvases;
     this.colliders = [];
     this.tiles = [];
     this.entities = {player: null, enemies: [], items: []};
@@ -1608,19 +1670,40 @@ class Level {
     const fm = { row: 1, col: 8, collider: false};
     const tt = { row: 2, col: 7, collider: 'trigger', width: 64, entity: 'tape'};
     const go = {entity: 'goal'};
+    const g1 = {
+      chunk: [
+        [bt,__],
+        [bm,__],
+        [bm,__],
+        [bm,__],
+        [bm,__],
+        [bm,__],
+        [bm,__],
+        [bm,__],
+        [bm,tt],
+      ],
+      sheet: objectSheet,
+      ctx: this.canvases.main.getContext('2d')
+    };
+    const g2 = {
+      chunk: [
+        [ft],
+        [fm],
+        [fm],
+        [fm],
+        [fm],
+        [fm],
+        [fm],
+        [fm],
+        [fm],
+      ],
+      sheet: objectSheet,
+      ctx: this.canvases.main.getContext('2d')
+    };
     const gg = {
       chunk: [
-        [bt,__,ft],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,__,fm],
-        [bm,tt,fm],
-      ],
-      sheet: objectSheet
+        [g1,__,g2]
+      ]
     };
 
 
@@ -1644,9 +1727,9 @@ class Level {
     this.ParseMap(map, groundSheet, {x:0, y: 0}, true);
   }
 
-  createTile(key, sheet, i, j, offset) {
+  createTile(key, sheet, i, j, offset, ctx) {
     let newTile = new Sprite({
-      ctx: this.ctx,
+      ctx: ctx || this.canvases.main.getContext('2d'),
       image: key.sheet || sheet,
       pos: {x: (i + offset.x) * 32, y: (j + offset.y) * 32},
       row: key.row,
@@ -1663,7 +1746,7 @@ class Level {
       width: key.width || 32,
       height: key.height || 32,
       color: 'rgba(0,0,0,0)'},
-      this.ctx,
+      this.canvases.main.getContext('2d'),
       key.collider
     );
     return newCollider;
@@ -1672,25 +1755,26 @@ class Level {
   createEntity(type, x, y) {
     switch (type) {
       case 'player':
-        this.entities.player = new Player({pos: {x, y}}, [], this.ctx);
+        this.entities.player = new Player({pos: {x, y}}, [], this.canvases.entities.getContext('2d'));
         return;
       case 'coin':
-        const coin = new Coin({ctx: this.ctx, pos: {x, y}});
+        const coin = new Coin({ctx: this.canvases.main.getContext('2d'), pos: {x, y}});
         this.entities.items.push(coin);
         this.colliders.push(coin.shape);
         return;
       case 'itemBlock':
-        const itemBlock = new ItemBlock({ctx: this.ctx, pos: {x, y}});
+        const itemBlock = new ItemBlock({ctx: this.canvases.main.getContext('2d'), pos: {x, y}});
         this.entities.items.push(itemBlock);
         this.colliders.push(itemBlock.shape);
         return;
       case 'enemy':
-        let enemy = new Galoomba({pos: {x, y}, width: 32, height: 32}, [], this.ctx);
+        let enemy = new Galoomba({pos: {x, y}, width: 32, height: 32}, [], this.canvases.entities.getContext('2d'));
         this.entities.enemies.push(enemy);
         this.colliders.push(enemy.trigger);
         return;
       case 'tape':
-        const tape = new GoalTape({x, y}, this.ctx);
+        const ctx = this.canvases.main.getContext('2d');
+        const tape = new GoalTape({x: x - 32, y}, ctx);
         this.tiles.push(tape);
         this.colliders.push(tape.collider);
 
@@ -1699,7 +1783,7 @@ class Level {
           width: 32,
           height: 1028,
           color: 'rgba(0,0,0,0)'},
-          this.ctx,
+          ctx,
           'trigger',
           tape
         );
@@ -1708,14 +1792,14 @@ class Level {
       case 'goal':
         return;
       case 'kill':
-        this.colliders.push(new Shape({pos: {x, y}, width: 10000, height: 32}, this.ctx, 'kill'));
+        this.colliders.push(new Shape({pos: {x, y}, width: 10000, height: 32}, this.canvases.main.getContext('2d'), 'kill'));
         return;
       default:
 
     }
   }
 
-  ParseMap(map, sheet, offset={x:0, y:0}, main) {
+  ParseMap(map, sheet, offset={x:0, y:0}, main, ctx) {
     map.forEach((row, j) => {
       row.forEach((key, i) => {
         if (key === null) {
@@ -1727,7 +1811,7 @@ class Level {
           return;
         }
         if (key.chunk) {
-          this.ParseMap(key.chunk, key.sheet || sheet, {x: i + offset.x, y: j + offset.y});
+          this.ParseMap(key.chunk, key.sheet || sheet, {x: i + offset.x, y: j + offset.y}, false, key.ctx);
           return;
         }
 
@@ -1735,7 +1819,8 @@ class Level {
           let newCollider = this.createCollider(key, i, j, offset);
           this.colliders.push(newCollider);
         }
-        let newTile = this.createTile(key, sheet, i, j, offset);
+
+        let newTile = this.createTile(key, sheet, i, j, offset, ctx);
         this.tiles.push(newTile);
 
       });
@@ -2095,7 +2180,7 @@ class GoalTape {
   createCollider() {
     let newCollider = new Shape({
       pos: this.pos,
-      width: 32,
+      width: 64,
       height: 32,
       color: 'rgba(0,0,0,0)'},
       this.ctx,
@@ -2108,7 +2193,16 @@ class GoalTape {
   createSprite() {
     let image = new Image();
     image.src = 'assets/images/misc_objects.png';
-    return new Sprite({ctx: this.ctx, width: 64, image: image, row: 2, col: 7, pos: this.pos, special: "tape"});
+    return new Sprite({
+      ctx: this.ctx,
+      width: 64,
+      image: image,
+      row: 2,
+      col: 7,
+      pos: this.pos,
+      special: "tape",
+      offset: {x: -32, y: 0}
+    });
   }
 
   moveGoalTape() {

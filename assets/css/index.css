@@ -11,9 +11,9 @@ body {
 }
 
 main {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  /*height: 50%;*/
+  /*display: flex;*/
+  /*flex-direction: column;*/
 }
 
 header {
@@ -88,8 +88,19 @@ img:hover{
   height: 60px;
 }
 
+.canvases {
+  /*background: green;*/
+
+  margin: auto;
+  width: 41%;
+  height: 600px;
+}
+
 canvas {
   margin: auto;
+  background: transparent;
+  position: absolute;
+  /*left: 0;*/
   /*padding: 0;
   margin: auto;
   display: block;
@@ -99,9 +110,22 @@ canvas {
   left: 0;
   right: 0;*/
 
-  background: #bbbfbf;
+  /*background: #bbbfbf;*/
   border: 1px solid black;
+}
+
+canvas:first-of-type {
   box-shadow: 2px 2px 15px #00000b;
+}
+
+#background-canvas {
+  z-index: -2;
+}
+#main-canvas {
+  z-index: -1;
+}
+#foreground-canvas {
+  z-index: 0;
 }
 
 .info {

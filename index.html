@@ -30,7 +30,14 @@
 
         </ul>
       </header>
-      <canvas id="canvas"></canvas>
+      <div class="canvases">
+        <canvas id="background-canvas"></canvas>
+        <canvas id="main-canvas"></canvas>
+        <canvas id="entities-canvas"></canvas>
+        <canvas id="foreground-canvas"></canvas>
+        <canvas id="ui-canvas"></canvas>
+      </div>
+
       <div class="info">
         <img id="info" src="assets/images/info.png" alt="info" onclick="testClick(document.getElementById('info-modal'))">
         <img id="volume" src="assets/images/volume.png" alt="volume" onclick="testClick(this)">
