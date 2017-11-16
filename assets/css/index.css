@@ -91,24 +91,24 @@ img:hover{
 .canvases {
   /*background: green;*/
 
-  margin: auto;
-  width: 41%;
+
+
   height: 600px;
 }
 
 canvas {
   margin: auto;
   background: transparent;
-  position: absolute;
-  /*left: 0;*/
-  /*padding: 0;
+
+  left: 0;
+  padding: 0;
   margin: auto;
   display: block;
   position: absolute;
   top: 50px;
   bottom: 0;
   left: 0;
-  right: 0;*/
+  right: 0;
 
   /*background: #bbbfbf;*/
   border: 1px solid black;
@@ -129,10 +129,18 @@ canvas:first-of-type {
 }
 
 .info {
-  display: flex;
-  justify-content: space-between;
+  left: 0;
+  padding: 0;
   margin: auto;
+  display: block;
+  position: absolute;
+  top: 700px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /*background: green;*/
   width: 768px;
+  height: 50px;
 }
 
 .info * {
