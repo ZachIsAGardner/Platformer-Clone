@@ -116,67 +116,65 @@ module.exports = Shape;
 
 /***/ }),
 /* 1 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
+
+const Sprite = __webpack_require__(3);
 
 class AnimatedSprite {
   constructor({ctx, width, height, image, ticksPerFrame, target, state, face, numberOfFrames, offset, row, col, staticSpeed}) {
-    this.object = {
-      ctx,
-      width: width || 32,
-      height: height || 32,
-      image,
-      row: row || 0,
-      col: col || 0,
-      tickCount: 0,
-      ticksPerFrame: ticksPerFrame || 6,
-      numberOfFrames: numberOfFrames || 14,
-      range: {start: 0, end: 3},
-      target,
-      lastState: '',
-      currentState: 'idle',
-      offset: offset || {x: 0, y: 0},
-      staticSpeed
-    };
+    this.ctx = ctx;
+    this.width = width || 32;
+    this.height = height || 32;
+    this.image = image;
+    this.row = row || 0;
+    this.col = col || 0;
+    this.tickCount = 0;
+    this.ticksPerFrame = ticksPerFrame || 6;
+    this.numberOfFrames = numberOfFrames || 14;
+    this.range = {start: 0, end: 3};
+    this.target = target;
+    this.lastState = '';
+    this.currentState = 'idle';
+    this.offset = offset || {x: 0, y: 0};
+    this.staticSpeed = staticSpeed;
   }
 
   stateChange() {
-    this.object.row = this.object.range.start;
+    this.row = this.range.start;
   }
 
   update() {
-    if (!this.object.staticSpeed) {
-      this.object.ticksPerFrame = 16 / Math.abs(this.object.target.vel.x);
-      if (this.object.ticksPerFrame > 16) {
-        this.object.ticksPerFrame = 16;
+    if (!this.staticSpeed) {
+      this.ticksPerFrame = 16 / Math.abs(this.target.vel.x);
+      if (this.ticksPerFrame > 16) {
+        this.ticksPerFrame = 16;
       }
     }
-    this.object.tickCount += 1;
+    this.tickCount += 1;
 
-    if (this.object.tickCount > this.object.ticksPerFrame) {
-      this.object.row += 1;
-      this.object.tickCount = 0;
-      if (this.object.row > this.object.range.end - 1) {
-        this.object.row = this.object.range.start;
+    if (this.tickCount > this.ticksPerFrame) {
+      this.row += 1;
+      this.tickCount = 0;
+      if (this.row > this.range.end - 1) {
+        this.row = this.range.start;
       }
     }
     this.render();
   }
 
   render() {
-    this.object.ctx.drawImage(
-      this.object.image,
-      this.object.row * this.object.width,
-      this.object.col * this.object.height,
-      this.object.width,
-      this.object.height,
-      this.object.target.shape.pos.x - this.object.offset.x,
-      this.object.target.shape.pos.y - this.object.offset.y,
-      this.object.width,
-      this.object.height
+    this.ctx.drawImage(
+      this.image,
+      this.row * this.width,
+      this.col * this.height,
+      this.width,
+      this.height,
+      this.target.shape.pos.x - this.offset.x,
+      this.target.shape.pos.y - this.offset.y,
+      this.width,
+      this.height
     );
-
   }
-
 }
 
 module.exports = AnimatedSprite;
@@ -204,6 +202,45 @@ module.exports = SFX;
 
 /***/ }),
 /* 3 */
+/***/ (function(module, exports) {
+
+class Sprite {
+  constructor({ctx, width, height, image, pos, row, col, special, offset}) {
+    this.ctx = ctx;
+    this.width = width || 32;
+    this.height = height || 32;
+    this.image = image;
+    this.row = row || 0;
+    this.col = col || 0;
+    this.pos = pos || {x: 0, y: 0};
+    this.offset = {x: 0, y: 0};
+    this.special = special;
+  }
+
+  update() {
+    this.render();
+  }
+
+  render() {
+    this.ctx.drawImage(
+      this.image,
+      this.row * this.width,
+      this.col * this.height,
+      this.width,
+      this.height,
+      this.pos.x - (this.width / 2),
+      this.pos.y - (this.height / 2),
+      this.width,
+      this.height
+    );
+  }
+}
+
+module.exports = Sprite;
+
+
+/***/ }),
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Util = __webpack_require__(5);
@@ -311,48 +348,6 @@ module.exports = MovingObject;
 
 
 /***/ }),
-/* 4 */
-/***/ (function(module, exports) {
-
-class Sprite {
-  constructor({ctx, width, height, image, pos, row, col, special, offset}) {
-    this.object = {
-      ctx,
-      width: width || 32,
-      height: height || 32,
-      image,
-      row: row || 0,
-      col: col || 0,
-      pos: pos || {x: 0, y: 0},
-      offset: {x: 0, y: 0},
-      special
-    };
-  }
-
-  update() {
-    this.render();
-  }
-
-  render() {
-    //assuming 32 x 32 sprite
-    this.object.ctx.drawImage(
-      this.object.image,
-      this.object.row * 32,
-      this.object.col * 32,
-      this.object.width,
-      this.object.height,
-      this.object.pos.x - (this.object.width / 2),
-      this.object.pos.y - (this.object.height / 2),
-      this.object.width,
-      this.object.height
-    );
-  }
-}
-
-module.exports = Sprite;
-
-
-/***/ }),
 /* 5 */
 /***/ (function(module, exports) {
 
@@ -377,7 +372,7 @@ module.exports = Util;
 /* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const MovingObject = __webpack_require__(3);
+const MovingObject = __webpack_require__(4);
 const Input = __webpack_require__(10);
 const MarioSprite = __webpack_require__(11);
 
@@ -524,14 +519,14 @@ class Player extends MovingObject {
   duck() {
     this.shape.height = 26;
     this.shape.pos.y = this.shape.pos.y + 30;
-    this.sprite.object.offset.y += 30;
+    this.sprite.offset.y += 30;
     this.canUnDuck = true;
   }
 
   unDuck() {
     if (this.canUnDuck) {
       this.shape.height = 56;
-      this.sprite.object.offset.y -= 30;
+      this.sprite.offset.y -= 30;
       this.shape.pos.y = this.shape.pos.y - 30;
     }
     this.canUnDuck = false;
@@ -594,11 +589,11 @@ new Game(canvasEl, volume);
 const Util = __webpack_require__(5);
 const Shape = __webpack_require__(0);
 
-const MovingObject = __webpack_require__(3);
+const MovingObject = __webpack_require__(4);
 const Player = __webpack_require__(6);
 
 const AnimatedSprite = __webpack_require__(1);
-const Sprite = __webpack_require__(4);
+const Sprite = __webpack_require__(3);
 const Level = __webpack_require__(12);
 
 const util = new Util();
@@ -1330,56 +1325,56 @@ const AnimatedSprite = __webpack_require__(1);
 
 class MarioSprite extends AnimatedSprite {
   parseState() {
-    let oldState = this.object.currentState;
-    if (this.object.target.animation.face === 'right') {
-      this.object.col = 0;
+    let oldState = this.currentState;
+    if (this.target.animation.face === 'right') {
+      this.col = 0;
     } else {
-      this.object.col = 2;
+      this.col = 2;
     }
-    switch (this.object.target.animation.state) {
+    switch (this.target.animation.state) {
       case 'walk':
-        this.object.range = {start: 0, end: 3};
+        this.range = {start: 0, end: 3};
         break;
       case 'idle':
-        this.object.range = {start: 0, end: 0};
+        this.range = {start: 0, end: 0};
         break;
       case 'victory':
-        this.object.range = {start: 15, end: 15};
+        this.range = {start: 15, end: 15};
         break;
       case 'jump':
-        this.object.range = {start: 10, end: 10};
+        this.range = {start: 10, end: 10};
         break;
       case 'fall':
-        this.object.range = {start: 11, end: 11};
+        this.range = {start: 11, end: 11};
         break;
       case 'skid':
-        this.object.range = {start: 6, end: 6};
+        this.range = {start: 6, end: 6};
         break;
       case 'run':
-        this.object.range = {start: 3, end: 6};
+        this.range = {start: 3, end: 6};
         break;
       case 'runJump':
-        this.object.range = {start: 12, end: 12};
+        this.range = {start: 12, end: 12};
         break;
       case 'duck':
-        this.object.range = {start: 9, end: 9};
+        this.range = {start: 9, end: 9};
         break;
       case 'lookUp':
-        this.object.range = {start: 8, end: 8};
+        this.range = {start: 8, end: 8};
         break;
       case 'die':
-        this.object.range = {start: 13, end: 15};
-        this.object.col = 0;
-        this.object.ticksPerFrame = 4;
+        this.range = {start: 13, end: 15};
+        this.col = 0;
+        this.ticksPerFrame = 4;
         break;
       default:
 
     }
 
-    this.object.currentState = this.object.target.animation.state;
+    this.currentState = this.target.animation.state;
 
-    if (this.object.currentState !== oldState) {
-      this.object.lastState = oldState;
+    if (this.currentState !== oldState) {
+      this.lastState = oldState;
       this.stateChange();
     }
   }
@@ -1518,7 +1513,7 @@ module.exports = Level1;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(4);
+const Sprite = __webpack_require__(3);
 
 const Coin = __webpack_require__(14);
 const ItemBlock = __webpack_require__(16);
@@ -1826,19 +1821,19 @@ class CoinSprite extends AnimatedSprite {
     super(params);
   }
   parseState() {
-    let oldState = this.object.currentState;
+    let oldState = this.currentState;
 
-    switch (this.object.target.animation.state) {
+    switch (this.target.animation.state) {
       case 'idle':
-        this.object.range = {start: 0, end: 3};
+        this.range = {start: 0, end: 3};
         break;
       default:
 
     }
 
-    this.object.currentState = this.object.target.animation.state;
+    this.currentState = this.target.animation.state;
 
-    if (this.object.currentState !== oldState) {
+    if (this.currentState !== oldState) {
       this.stateChange();
     }
   }
@@ -1888,17 +1883,17 @@ class ItemBlock {
     }
     //kinda lame :/
     setTimeout(() => {
-      this.sprite.object.offset.y = 10;
+      this.sprite.offset.y = 10;
     }, 50);
     setTimeout(() => {
-      this.sprite.object.offset.y = 2;
+      this.sprite.offset.y = 2;
       this.animation.state = 'flip';
     }, 100);
     setTimeout(() => {
-      this.sprite.object.offset.y = -1;
+      this.sprite.offset.y = -1;
     }, 150);
     setTimeout(() => {
-      this.sprite.object.offset.y = 0;
+      this.sprite.offset.y = 0;
     }, 200);
 
     this.resetTimer = setTimeout(() => {
@@ -1933,22 +1928,22 @@ class ItemBlockSprite extends AnimatedSprite {
     super(params);
   }
   parseState() {
-    let oldState = this.object.currentState;
+    let oldState = this.currentState;
 
-    switch (this.object.target.animation.state) {
+    switch (this.target.animation.state) {
       case 'idle':
-        this.object.range = {start: 0, end: 0};
+        this.range = {start: 0, end: 0};
         break;
       case 'flip':
-        this.object.range = {start: 0, end: 4};
+        this.range = {start: 0, end: 4};
         break;
       default:
 
     }
 
-    this.object.currentState = this.object.target.animation.state;
+    this.currentState = this.target.animation.state;
 
-    if (this.object.currentState !== oldState) {
+    if (this.currentState !== oldState) {
       this.stateChange();
     }
   }
@@ -1967,7 +1962,7 @@ module.exports = ItemBlockSprite;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const MovingObject = __webpack_require__(3);
+const MovingObject = __webpack_require__(4);
 const GaloombaSprite = __webpack_require__(19);
 const SFX = __webpack_require__(2);
 const sfx = new SFX();
@@ -2043,26 +2038,26 @@ const AnimatedSprite = __webpack_require__(1);
 
 class GaloombaSprite extends AnimatedSprite {
   parseState() {
-    let oldState = this.object.currentState;
+    let oldState = this.currentState;
 
-    if (this.object.target.animation.face === 'right') {
-      this.object.col = 0;
+    if (this.target.animation.face === 'right') {
+      this.col = 0;
     } else {
-      this.object.col = 2;
+      this.col = 2;
     }
 
-    switch (this.object.target.animation.state) {
+    switch (this.target.animation.state) {
       case 'walk':
-        this.object.range = {start: 0, end: 2};
-        this.object.ticksPerFrame = 24;
+        this.range = {start: 0, end: 2};
+        this.ticksPerFrame = 24;
         break;
       default:
 
     }
 
-    this.object.currentState = this.object.target.animation.state;
+    this.currentState = this.target.animation.state;
 
-    if (this.object.currentState !== oldState) {
+    if (this.currentState !== oldState) {
       this.stateChange();
     }
   }
@@ -2081,7 +2076,7 @@ module.exports = GaloombaSprite;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(4);
+const Sprite = __webpack_require__(3);
 
 class GoalTape {
   constructor(pos, ctx) {
@@ -2135,7 +2130,7 @@ class GoalTape {
     this.collider.update();
     this.collider.pos = this.pos;
     this.moveGoalTape();
-    // this.sprite.object.pos.y -= 2;
+    // this.sprite.pos.y -= 2;
   }
 
   setTrigger(collidee) {
