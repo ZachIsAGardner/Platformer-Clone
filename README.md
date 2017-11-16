@@ -2,6 +2,8 @@
 
 Super Mario World is a great example of simple and organic game design. A great game to clone to test your programmer skills!
 
+[Live](http://zachisagardner.com/Platformer-Clone/)
+
 ![splash](https://github.com/ZachIsAGardner/Platformer-Clone/blob/master/docs/Screen%20Shot%202017-11-16%20at%203.43.42%20PM.png)
 
 ## Collision Detection
@@ -56,7 +58,6 @@ My collision detection is simple and quick, allowing for large numbers of moving
 ## Level Creation
 Levels are generated with 2d arrays full of predefined keys. These keys point to anything between a single tile or a whole chunk of tiles making the 2d arrays much more readable.
 
-
 ```
 [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
 [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -86,3 +87,5 @@ Levels are generated with 2d arrays full of predefined keys. These keys point to
 [ki,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
 ```
 ![level](https://github.com/ZachIsAGardner/Platformer-Clone/blob/master/docs/Screen%20Shot%202017-11-16%20at%204.06.33%20PM.png)
+
+[Live](http://zachisagardner.com/Platformer-Clone/)
