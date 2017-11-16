@@ -85,4 +85,4 @@ My method for creating levels is simple and quick. Levels are generated with 2d 
 [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
 [ki,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
 ```
-![level]()
+![level](https://github.com/ZachIsAGardner/Platformer-Clone/blob/master/docs/Screen%20Shot%202017-11-16%20at%204.06.33%20PM.png)
