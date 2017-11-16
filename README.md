@@ -2,13 +2,13 @@
 
 Super Mario World is a great example of simple and organic game design. A great game to clone to test your programmer skills!
 
-![splash]()
+![splash](https://github.com/ZachIsAGardner/Platformer-Clone/blob/master/docs/Screen%20Shot%202017-11-16%20at%203.43.42%20PM.png)
 
 ##Collision Detection
 
 Accurate collision detection is especially important for platformers. In order to achieve this I used raycasts. These lines check for intersections with collide-able objects and perform repositioning of moving objects when necessary. Their length is dependent on the moving object's velocity. This affectively checks where the object will be on the following frame, as to prevent gross looking collisions.
 
-![collision]()
+![collision](https://github.com/ZachIsAGardner/Platformer-Clone/blob/master/docs/Screen%20Shot%202017-11-16%20at%203.44.54%20PM.png)
 
 ```
 horizontalCollisions() {
@@ -51,7 +51,7 @@ horizontalCollisions() {
 
 My collision detection is simple and quick, allowing for large numbers of moving objects.
 
-![collision stress]()
+![collision stress](https://github.com/ZachIsAGardner/Platformer-Clone/blob/master/docs/Screen%20Shot%202017-11-16%20at%203.46.04%20PM.png)
 
 ## Level Creation
 My method for creating levels is simple and quick. Levels are generated with 2d arrays full of predefined keys. These keys point to anything between a single tile or a whole chunk of tiles making the 2d arrays much more readable.
