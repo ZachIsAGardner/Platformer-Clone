@@ -1,71 +1,86 @@
 # Super Mario World Clone
 
-Super Mario World is a great example of simple and organic game design. Mario goes from left to right in an attempt to reach the goal gate.
+Super Mario World is a great example of simple and organic game design. A great game to clone to test your programmer skills!
 
-Functionality & MVPs
----
-Important basic features for a complete experience.
-  * Satisfying controls and physics
-  * Sprite animation
-  * Background art and Parallax scrolling
-  * Music and sound effects
-  * Level with a win condition
-  * Enemies
+![splash]()
 
-  in addition...
-  * Production README
-  * About modal with controls and explanation of the project.
+##Collision Detection
 
-### Bonus
-Some wish list features.
-  * Pausing
-  * Power-ups
-  * Picking up objects/ koopa shells
-  * Proper raycasts
-  * Slopes
-  * Moving platforms
-  * Tile editor
+Accurate collision detection is especially important for platformers. In order to achieve this I used raycasts. These lines check for intersections with collide-able objects and perform repositioning of moving objects when necessary. Their length is dependent on the moving object's velocity. This affectively checks where the object will be on the following frame, as to prevent gross looking collisions.
 
-Wireframes
----
-The clone will mostly be just a viewport. There will be controls and links accompanying the viewport as well.
+![collision]()
 
-![game viewport](https://github.com/ZachIsAGardner/game-project/blob/master/docs/Screen%20Shot%202017-11-07%20at%208.23.56%20PM.png)
+```
+horizontalCollisions() {
+  let anyCollisions = false;
 
-Architecture
----
-The clone will be implemented solely with vanilla javascript with a little bit CSS and HTML.
+  for (var i = 0; i < this.raycastAmount; i++) {
+    let startX;
+    let endX;
 
-```game.js```: This script will handle the creating and rendering of objects to the viewport. It will also move the camera to follow the player.
+    let spacing = (i * ((this.shape.height - this.skin) / (this.raycastAmount - 1))) + (this.skin / 2);
 
-```input.js```: This script will handle user input.
+    if (this.vel.x > 0) {
+      startX = {
+        x: this.shape.calcCenter().x + (this.shape.width / 2),
+        y: this.shape.pos.y + spacing
+      };
+      endX = {
+        x: this.shape.calcCenter().x + (this.shape.width / 2) + Math.abs(this.object.vel.x),
+        y: this.shape.pos.y + spacing
+      };
+    } else {
+      startX = {
+        x: this.shape.calcCenter().x - (this.shape.width / 2),
+        y: this.shape.pos.y + spacing
+      };
+      endX = {
+        x: this.shape.calcCenter().x - (this.shape.width / 2) - Math.abs(this.object.vel.x),
+        y: this.shape.pos.y + spacing
+      };
+    }
 
-```player.js```: This extends ```moving_object.js``` and will provide player specific actions like jumping on enemies.
+    let hit = this.raycast(startX, endX, 'horizontal');
+    if (hit) {
+      anyCollisions = this.parseHorizontalCollision(hit);
+    }
+  }
+  return anyCollisions;
+}
+```
 
-```enemy.js```: This will provide ai input for and extend ```moving_object.js```.
+My collision detection is simple and quick, allowing for large numbers of moving objects.
 
-```collision.js```: This script will create raycasts depending on the width, height, and velocity of the object. Any collision will properly set the object's position
+![collision stress]()
 
-```shape.js```: This lightweight script will create shapes. Mostly to show hitboxes for debugging.
+## Level Creation
+My method for creating levels is simple and quick. Levels are generated with 2d arrays full of predefined keys. These keys point to anything between a single tile or a whole chunk of tiles making the 2d arrays much more readable.
 
-```sprite.js```: This script will handle sprite animation.
-
-
-```moving_object.js```: This script will be the base of all moving objects. It will utilize ```collision.js```, ```input.js```, ```shape.js```, and ```sprite.js```.
-
-
-```util.js```: This script will house simple utily functions.
-
-Implementation Timeline
----
-**Day 1:** Basic implementation of collision, input, sprite animation and moving objects.
-
-**Day 2:** Background art and parallax. Sound as well.
-
-**Day 3:** Basic level with a goal gate at the end for the win condition. Add enemies and other hazards as well for losing conditions.
-
-**Bonus/ Weekend:**
-
-**Day 4:** Implement power-up mushroom. Mario gets smaller instead of dying in one hit for appropriate hazards. Game can also be paused.
-
-**Day 5:** Proper raycasts! Raycasts will return an intersection and slope angle rather than just the collision object itself. Implement Slopes.
+```
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,tl,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,ml,mi,mr,tl,to,to,to,to,to,tr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,pl,__,__,__,__,__,ml,mi,mr,ml,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,en,__,__,__,__,__],
+[tl,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,we,__],
+[ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+[ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+[ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+[ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+[ml,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,wr,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+[ki,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+```
