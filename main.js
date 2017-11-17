@@ -1,4 +1,5 @@
 const Game = require('./lib/game.js');
+const TileEditor = require('./lib/tile_editor.js');
 
 const canvasBG = document.getElementById("background-canvas");
 const canvasMain = document.getElementById("main-canvas");
@@ -21,3 +22,4 @@ Object.entries(canvases).forEach((key) => {
 });
 
 new Game(canvases, volume);
+// new TileEditor(canvases);

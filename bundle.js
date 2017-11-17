@@ -83,13 +83,14 @@ class Shape {
     this.ctx = ctx;
   }
 
-  update() {
-    this.render();
+  update(ctx) {
+    this.render(ctx);
   }
 
-  render() {
-    this.ctx.fillStyle = this.color;
-    this.ctx.fillRect(this.pos.x, this.pos.y, this.width, this.height);
+  render(ctx) {
+    ctx = ctx || this.ctx;
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.pos.x, this.pos.y, this.width, this.height);
   }
 
   setPos(x, y) {
@@ -592,6 +593,10 @@ class Level {
     this.tiles = [];
     this.entities = {player: null, enemies: [], items: []};
     this.border = {x: {min: 0, max: 100}, y: {min: 0, max: 100}};
+
+    let groundSheet = new Image();
+    groundSheet.src = 'assets/images/ground_tiles.png';
+    this.sheets = {ground: groundSheet};
   }
 
   getKeys() {
@@ -883,6 +888,7 @@ module.exports = Level;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Game = __webpack_require__(9);
+const TileEditor = __webpack_require__(22);
 
 const canvasBG = document.getElementById("background-canvas");
 const canvasMain = document.getElementById("main-canvas");
@@ -905,6 +911,7 @@ Object.entries(canvases).forEach((key) => {
 });
 
 new Game(canvases, volume);
+// new TileEditor(canvases);
 
 
 /***/ }),
@@ -922,6 +929,7 @@ const Sprite = __webpack_require__(3);
 
 const Level1 = __webpack_require__(13);
 const Level2 = __webpack_require__(21);
+const Level3 = __webpack_require__(24);
 const levels = [Level1, Level2];
 
 const util = new Util();
@@ -1184,8 +1192,6 @@ class Game {
       this.screen = {alpha: 0, rate: 0.004, loading: true};
     }, 7253);
   }
-
-
 
   nextLevel() {
     this.currentLevel += 1;
@@ -1948,13 +1954,12 @@ class Level1 extends LevelCreator {
 
     const m7 = {
       chunk: [
-        [__,__,__,__,__,gg,__,__],
-        [__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__],
-        [__,__,__,pl,__,__,__,__],
-        [__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__],
-        [__,__,__,bo,__,bo,bo,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,pl,__,__],
+        [__,__,__,__,__,__,__,__,__,to,to,to],
+        [__,__,__,__,__,__,__,__,__,__,to,__]
       ]
     };
 
@@ -2391,8 +2396,8 @@ class Level2 extends LevelCreator {
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
-        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [ib,ib,ib,ib,ib,ib,ib,ib,ib,ib,ib,ib,ib,ib,ib,ib,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
         [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
@@ -2434,6 +2439,352 @@ class Level2 extends LevelCreator {
 }
 
 module.exports = Level2;
+
+
+/***/ }),
+/* 22 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const Shape = __webpack_require__(0);
+const LevelCreator = __webpack_require__(7);
+const Input = __webpack_require__(11);
+const input = new Input();
+
+const CreateFile = __webpack_require__(23);
+
+
+var coor = {x: 0, y: 0};
+var mouseDown = false;
+var mouseDown2 = false;
+
+class TileEditor {
+  constructor(canvases) {
+    this.canvases = canvases;
+    this.ctx = this.canvases.main.getContext('2d');
+    this.cursor = new Shape({
+      width: 32,
+      height: 32,
+      color: 'rgba(255,200,200,0.5)',
+      pos: {x: 0, y: 0}
+    });
+
+    this.req = null;
+
+    this.tiles = [];
+    this.keyMap = [
+      []
+    ];
+    this.map = [
+      []
+    ];
+
+    this.level = new LevelCreator(this.canvases);
+    this.previewTile = null;
+    this.keys = Object.entries(this.level.getKeys());
+    this.currentKeyIdx = 4;
+    this.currentKey = this.keys[this.currentKeyIdx];
+
+    this.start();
+
+  }
+
+  getPreviewTile() {
+    if (this.currentKey != null && this.currentKey[1] != null) {
+      this.previewTile = this.level.createTile(
+        this.currentKey[1],
+        this.level.sheets.ground,
+        1.5,
+        .5,
+        {x: 0, y: 0},
+        this.ctx
+      );
+    } else {
+      this.previewTile = null;
+    }
+  }
+
+  createTile() {
+    const pos = {x: this.cursor.pos.x / 32, y: this.cursor.pos.y / 32};
+    this.populateMap(pos.x, pos.y, this.currentKey);
+  }
+
+  createArt(key, pos) {
+    const newTile = this.level.createTile(
+      key[1],
+      this.level.sheets.ground,
+      pos.x,
+      pos.y,
+      {x: .5, y: .5},
+      this.ctx
+    );
+    this.tiles.push(newTile);
+  }
+
+  deleteTile() {
+    const pos = {x: this.cursor.pos.x / 32, y: this.cursor.pos.y / 32};
+    this.populateMap(pos.x, pos.y, this.keys[12]);
+  }
+
+  populateMap(x, y, key) {
+    while(y + 1 > this.map.length) {
+      this.map.push([]);
+    }
+    this.map.forEach((row) => {
+      while(x + 1 > row.length) {
+        row.push(this.keys[12]);
+      }
+    });
+
+    this.map[y][x] = key;
+  }
+
+  showMap() {
+    this.ctx.font = '12px Courier';
+    this.ctx.fillText(this.currentKey[0], 16, 16);
+
+    this.keyMap = [];
+
+    this.ctx.font = '8px Courier';
+    this.map.forEach((row, i) => {
+      const text = [];
+      row.forEach((tile) => {
+        text.push(tile[0]);
+      });
+      this.ctx.fillText(text, 32, 16 * (i + 2));
+      this.keyMap.push(`\n\t\t\t\t[${text}]`);
+    });
+  }
+
+  changeCurrentKey() {
+    if (input.inputs.leftHeld) {
+      if (this.currentKeyIdx > 0) {
+        this.currentKeyIdx -= 1;
+      }
+      this.currentKey = this.keys[this.currentKeyIdx];
+      this.getPreviewTile();
+      input.inputs.leftHeld = false;
+    }
+    if (input.inputs.rightHeld) {
+      if (this.currentKeyIdx < this.keys.length - 1) {
+        this.currentKeyIdx += 1;
+      }
+      this.currentKey = this.keys[this.currentKeyIdx];
+      this.getPreviewTile();
+      input.inputs.rightHeld = false;
+    }
+  }
+
+  drawTiles() {
+    this.map.forEach((row, j) => {
+      row.forEach((key, i) => {
+        if (key[1] !== null) {
+          this.createArt(key, {x: i, y: j});
+        }
+      });
+    });
+    this.tiles.forEach((tile) => {
+      tile.update(this.ctx);
+    });
+
+    this.tiles = [];
+  }
+
+  getCursorPos() {
+    this.cursor.update(this.ctx);
+    this.cursor.pos = {
+      x: Math.ceil((coor.x - 32) / 32) * 32,
+      y: Math.ceil((coor.y - 32) / 32) * 32
+    };
+  }
+
+  writeFile() {
+    let contents = [
+`const LevelCreator = require('./level_creator');
+
+class LevelX extends LevelCreator {
+  constructor(ctx) {
+    super(ctx);
+    this.createLevel(this.mapLevel());
+  }
+
+  mapLevel() {
+    let { pl, en, ki, tl, to, tr, ml, mi,
+          mr, bl, bo, br, __, ww, we, wl,
+          wr, ch, bt, bm, ft, fm, tt, go,
+          gg, ib, co, tw, wt, td, tu
+        } = this.getKeys();
+
+    const map = {
+      chunk: [${this.keyMap}
+      ]
+    };
+
+    return map;
+  }
+}
+
+module.exports = LevelX;`
+    ];
+    // contents.push(this.keyMap);
+    return contents;
+  }
+
+  start() {
+    const animate = () => {
+      //change this
+      this.ctx.clearRect(0, 0, 5000, 5000);
+
+      this.ctx.fillStyle = 'rgba(100,100,100,0.25)';
+      this.ctx.fillRect(0, 0, this.map[0].length * 32, this.map.length * 32);
+
+      this.drawTiles();
+
+      if (this.previewTile) {
+        this.previewTile.update(this.ctx);
+      }
+
+      this.getCursorPos();
+
+      this.changeCurrentKey();
+
+      if (mouseDown) {
+        this.createTile();
+        mouseDown = false;
+      }
+      if (mouseDown2) {
+        this.deleteTile();
+        mouseDown2 = false;
+      }
+
+      this.showMap();
+      CreateFile(this.writeFile());
+
+      this.req = requestAnimationFrame(animate);
+    };
+
+    this.req = animate();
+  }
+}
+//---
+
+function getMouseCoor(e) {
+  coor = handleMouseMove(document.getElementById("main-canvas"), e);
+}
+function getMouseDown(e) {
+  if (e.button === 0) {
+    mouseDown = true;
+  }
+  if (e.button === 2) {
+    mouseDown2 = true;
+  }
+}
+
+function getMouseUp(e) {
+  if (e.button === 0) {
+    mouseDown = false;
+  }
+  if (e.button === 2) {
+    mouseDown2 = false;
+  }
+}
+
+
+window.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+}, false);
+window.addEventListener('mousemove', getMouseCoor, false);
+window.addEventListener('mousedown', getMouseDown, false);
+window.addEventListener('mouseup', getMouseUp, false);
+
+function handleMouseMove(canvas, e) {
+  const rect = canvas.getBoundingClientRect();
+  let pos = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+  return pos;
+}
+
+//---
+
+module.exports = TileEditor;
+
+
+/***/ }),
+/* 23 */
+/***/ (function(module, exports) {
+
+const createFile = (value) => {
+  var textFile = null;
+  const makeTextFile = () => {
+    var data = new Blob([value], {type: 'text/javascript'});
+
+    if (textFile !== null) {
+      window.URL.revokeObjectURL(textFile);
+    }
+
+    textFile = window.URL.createObjectURL(data);
+
+    return textFile;
+  };
+
+  var create = document.getElementById('create');
+  var textbox = document.getElementById('textbox');
+
+  create.addEventListener('click', () => {
+    var link = document.getElementById('downloadlink');
+    link.href = makeTextFile();
+    link.style.display = 'block';
+  }, false);
+};
+
+module.exports = createFile;
+
+
+/***/ }),
+/* 24 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const LevelCreator = __webpack_require__(7);
+
+class Level3 extends LevelCreator {
+  constructor(ctx) {
+    super(ctx);
+    this.createLevel(this.mapLevel());
+  }
+
+  mapLevel() {
+    let { pl, en, ki, tl, to, tr, ml, mi,
+          mr, bl, bo, br, __, ww, we, wl,
+          wr, ch, bt, bm, ft, fm, tt, go,
+          gg, ib, co, tw, wt, td, tu
+        } = this.getKeys();
+
+    const map = {
+      chunk: [
+          [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,__,__,en,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,ib,ib,ib,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,__,pl,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,tl,to,to,to,to,to,to,to,to,tr,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,ml,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,ml,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,__],
+          [__,__,__,__,ml,mi,mi,mi,mi,mi,mi,mi,mi,mr,ib,ib,ib,ib,ib,ib,ib,ib,ib],
+          [ki,__,__,__,ml,mi,mi,mi,mi,mi,mi,mi,mi,mr,__,__,__,__,__,__,__,__,__]
+      ]
+    };
+
+    return map;
+  }
+}
+
+module.exports = Level3;
 
 
 /***/ })
