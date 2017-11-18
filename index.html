@@ -38,8 +38,13 @@
       <canvas id="foreground-canvas"></canvas>
       <canvas id="ui-canvas"></canvas>
 
-      <!-- <button id='create'>create</button> -->
-      <a download="level.js" id='downloadlink' style='display: none'>Download Level</a>
+      <div class="tile-editor" style="display: none">
+        <button id='create'>create</button>
+        <a download="level.js" id='downloadlink' style='display: none'>Download Level</a>
+
+        <button id='load'>load</button>
+        <textarea id='textbox'></textarea>
+      </div>
 
       <div class="info">
         <img id="info" src="assets/images/info.png" alt="info" onclick="testClick(document.getElementById('info-modal'))">
