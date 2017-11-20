@@ -1001,8 +1001,8 @@ Object.entries(canvases).forEach((key) => {
   key[1].height = 588;
 });
 
-// new Game(canvases, volume);
-new TileEditor(canvases);
+new Game(canvases, volume);
+// new TileEditor(canvases);
 
 
 /***/ }),
