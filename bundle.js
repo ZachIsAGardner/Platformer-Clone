@@ -555,9 +555,30 @@ module.exports = Level;
 
 /***/ }),
 /* 5 */
+/***/ (function(module, exports) {
+
+const Util = function() {
+  //constructor
+};
+
+Util.prototype.lerp = function(from, to, time) {
+  return from + time * (to - from);
+};
+
+Util.prototype.pixelPerfect = function(pos) {
+  const x = Math.round(pos.x);
+  const y = Math.round(pos.y);
+  return {x, y};
+};
+
+module.exports = Util;
+
+
+/***/ }),
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(6);
+const Util = __webpack_require__(5);
 const util = new Util();
 const Shape = __webpack_require__(0);
 
@@ -662,31 +683,10 @@ module.exports = MovingObject;
 
 
 /***/ }),
-/* 6 */
-/***/ (function(module, exports) {
-
-const Util = function() {
-  //constructor
-};
-
-Util.prototype.lerp = function(from, to, time) {
-  return from + time * (to - from);
-};
-
-Util.prototype.pixelPerfect = function(pos) {
-  const x = Math.round(pos.x);
-  const y = Math.round(pos.y);
-  return {x, y};
-};
-
-module.exports = Util;
-
-
-/***/ }),
 /* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const MovingObject = __webpack_require__(5);
+const MovingObject = __webpack_require__(6);
 const Input = __webpack_require__(8);
 const MarioSprite = __webpack_require__(12);
 
@@ -1001,18 +1001,18 @@ Object.entries(canvases).forEach((key) => {
   key[1].height = 588;
 });
 
-new Game(canvases, volume);
-// new TileEditor(canvases);
+// new Game(canvases, volume);
+new TileEditor(canvases);
 
 
 /***/ }),
 /* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Util = __webpack_require__(6);
+const Util = __webpack_require__(5);
 const Shape = __webpack_require__(0);
 
-const MovingObject = __webpack_require__(5);
+const MovingObject = __webpack_require__(6);
 const Player = __webpack_require__(7);
 
 const AnimatedSprite = __webpack_require__(1);
@@ -2170,7 +2170,7 @@ module.exports = ItemBlockSprite;
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const MovingObject = __webpack_require__(5);
+const MovingObject = __webpack_require__(6);
 const GaloombaSprite = __webpack_require__(19);
 const SFX = __webpack_require__(2);
 const sfx = new SFX();
@@ -2498,7 +2498,7 @@ const input = new Input();
 
 const CreateFile = __webpack_require__(24);
 
-const Util = __webpack_require__(6);
+const Util = __webpack_require__(5);
 const util = new Util();
 
 var offset = {x: 0, y: 0};
