@@ -58,13 +58,14 @@ My collision detection is simple and quick, allowing for large numbers of moving
 ## Level Creation
 To create levels I made a basic tile editor. The user can place tiles defined by predefined keys to map out levels.
 
-![tile editor]()
+The tile editor exports these into javascript files that are ready to be inserted the main game.
+
+The tile editor can also load pre-made levels and edit them.
+
+![tile editor](https://github.com/ZachIsAGardner/Platformer-Clone/blob/master/docs/Screen%20Shot%202017-11-20%20at%208.54.26%20AM.png)
 
 Levels are generated with 2d arrays full of predefined keys. These keys point to anything between a single tile or a whole chunk of tiles making the 2d arrays much more readable.
 
-The tile editor exports these into js files that are ready to be inserted the main game.
-
-The tile editor can also load premade levels and edit them.
 
 ```
 [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,m2],
