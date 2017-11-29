@@ -914,6 +914,7 @@ const Input = function (entity) {
   };
 
   window.onkeydown = (e) => {
+    e.preventDefault();
     if (e.keyCode === 87 || e.keyCode === 38) {
       inputs.upHeld = true;
     }
@@ -945,6 +946,7 @@ const Input = function (entity) {
   };
 
   window.onkeyup = (e) => {
+    e.preventDefault();
     if (e.keyCode === 87 || e.keyCode === 38) {
       inputs.upHeld = false;
     }
@@ -1217,7 +1219,7 @@ class Game {
         }
         this.gameStart = false;
         this.pause = false;
-        //lazy lazy bad :(
+        //kinda lame to change input from outside
         this.input.pausePressed = false;
         this.input.keyPressed = false;
       }
@@ -1228,7 +1230,7 @@ class Game {
       if (this.input.pausePressed) {
         this.pause = true;
         this.pauseAudio();
-        //bad dont change input from outside
+        //kinda lame to change input from outside
         this.input.pausePressed = false;
         this.input.keyPressed = false;
       }
