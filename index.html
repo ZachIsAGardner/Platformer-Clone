@@ -38,12 +38,17 @@
       <canvas id="foreground-canvas"></canvas>
       <canvas id="ui-canvas"></canvas>
 
-      <div class="tile-editor" style="display: none">
-        <button id='create'>create</button>
-        <a download="level.js" id='downloadlink' style='display: none'>Download Level</a>
+      <!-- Change display to allow tile editor -->
+      <div id="editor" style="display: none;">
+        <div class="create">
+          <button id='create'>create</button>
+          <a download="level.js" id='downloadlink' style='display: none'>Download Level</a>
+        </div>
 
-        <button id='load'>load</button>
-        <textarea id='textbox'></textarea>
+        <div class="load">
+          <textarea id='textbox' placeholder="Paste 2D array with valid keys."></textarea>
+          <button id='load'>load</button>
+        </div>
       </div>
 
       <div class="info">
@@ -53,10 +58,24 @@
       <section id="info-modal">
         <div>
           <h2>Info</h2>
-          <h3>Controls</h3>
-          <p><strong>WASD / Arrows:</strong> movement</p>
-          <p><strong>J / Z/ Spacebar:</strong> jump</p>
-          <p><strong>K / X:</strong> run</p>
+          <h3>Game Controls</h3>
+          <p><strong>WASD/ Arrows:</strong> movement</p>
+          <p><strong>J/ Z/ Spacebar:</strong> jump</p>
+          <p><strong>K/ X:</strong> run</p>
+
+          <h3>Tile Editor Controls</h3>
+          <p>Access tile editor by holding "e" after refresh.</p>
+          <p><strong>Left Click:</strong> draw current tile</p>
+          <p><strong>Right Click:</strong> delete tile</p>
+          <p><strong>A/ D:</strong> switch current tile</p>
+          <p><strong>S:</strong> switch tool</p>
+
+          <h4>Selection tool</h4>
+          <ul>
+            <li>Hold left click and drag to make selection</li>
+            <li>Left click again to drag selection</li>
+            <li>Right click to finish and paste selected tiles</li>
+          </ul>
         </div>
       </section>
     </main>

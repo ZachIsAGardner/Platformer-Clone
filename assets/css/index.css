@@ -152,14 +152,14 @@ canvas:first-of-type {
   position: absolute;
   border: 1px solid black;
   border-radius: 4px;
-  top: -150px;
+  top: -100px;
   bottom: 0;
   left: 0;
   right: 0;
 
   background: #32333f;
-  width: 300px;
-  height: 300px;
+  width: 500px;
+  height: 600px;
 
   display: flex;
   justify-content: center;
@@ -174,14 +174,18 @@ canvas:first-of-type {
   margin-top: 0;
   border-bottom: 1px solid #778;
 }
+#info-modal h3 {
+  width: auto;
+}
 
 #info-modal div {
   width: 80%;
   height: 80%;
 }
 
-#info-modal p {
-  font-size: 20px;
+#info-modal p,
+#info-modal li  {
+  font-size: 16px;
   color: #aaaacc;
   font-weight: lighter;
 }
@@ -192,4 +196,63 @@ canvas:first-of-type {
 
 #info-modal.active {
   display: flex;
+}
+
+#editor {
+  display: flex;
+  flex-direction: column;
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.load,
+.create {
+  width: 150px;
+  /*height: 100px;*/
+  display: flex;
+  flex-direction: column;
+  margin-left: 15px;
+  margin-right: auto;
+  margin-top: 15px;
+
+  background: #32333f;
+  border: 1px solid black;
+  padding: 10px;
+}
+
+.load *,
+.create * {
+  margin: auto;
+}
+
+.load button,
+.create button {
+  width: 50px;
+  background: #aaaacc;
+  border: black;
+  color: black;
+}
+
+.load button:hover,
+.create button:hover {
+  cursor: pointer;
+}
+
+.create a {
+  color: white;
+  text-decoration: none;
+  margin-top: 5px;
+}
+.create a:hover {
+  text-decoration: underline;
+}
+
+.load textarea {
+
+  width: 140px;
+  height: 120px;
+  background: #22232f;
+  margin-bottom: 5px;
+  border: 1px solid black;
+  color: white;
 }

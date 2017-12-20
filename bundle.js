@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 9);
+/******/ 	return __webpack_require__(__webpack_require__.s = 8);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -119,7 +119,7 @@ module.exports = Shape;
 /* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Sprite = __webpack_require__(3);
+const Sprite = __webpack_require__(4);
 
 class AnimatedSprite {
   constructor({ctx, width, height, image, ticksPerFrame, target, state, face, numberOfFrames, offset, row, col, staticSpeed}) {
@@ -183,82 +183,21 @@ module.exports = AnimatedSprite;
 
 /***/ }),
 /* 2 */
-/***/ (function(module, exports) {
-
-class SFX {
-  constructor() {
-    const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
-    const coin = new Audio ("assets/audio/sfx/smw_coin.wav");
-    const stomp = new Audio ("assets/audio/sfx/smw_stomp.wav");
-    const bonk = new Audio ("assets/audio/sfx/smw_shell_ricochet.wav");
-    this.sounds = {
-      jump,
-      coin,
-      stomp,
-      bonk
-    };
-  }
-}
-
-module.exports = SFX;
-
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports) {
-
-class Sprite {
-  constructor({ctx, width, height, image, pos, row, col, special, offset}) {
-    this.ctx = ctx;
-    this.width = width || 32;
-    this.height = height || 32;
-    this.image = image;
-    this.row = row || 0;
-    this.col = col || 0;
-    this.pos = pos || {x: 0, y: 0};
-    this.offset = offset || {x: 0, y: 0};
-    this.special = special;
-  }
-
-  update() {
-    this.render();
-  }
-
-  render() {
-
-    this.ctx.drawImage(
-      this.image,
-      this.row * 32,
-      this.col * 32,
-      this.width,
-      this.height,
-      this.pos.x - (this.width / 2) - this.offset.x,
-      this.pos.y - (this.height / 2) - this.offset.y,
-      this.width,
-      this.height
-    );
-  }
-}
-
-module.exports = Sprite;
-
-
-/***/ }),
-/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(3);
+const Sprite = __webpack_require__(4);
 
-const Coin = __webpack_require__(14);
-const ItemBlock = __webpack_require__(16);
+const Coin = __webpack_require__(13);
+const ItemBlock = __webpack_require__(15);
 const Player = __webpack_require__(7);
-const Galoomba = __webpack_require__(18);
-const GoalTape = __webpack_require__(20);
+const Galoomba = __webpack_require__(17);
+const GoalTape = __webpack_require__(19);
 
 class Level {
-  constructor(canvases) {
+  constructor(canvases, inputF) {
     this.canvases = canvases;
+    this.inputFetcher = inputF;
     this.colliders = [];
     this.tiles = [];
     this.entities = {player: null, enemies: [], items: []};
@@ -459,7 +398,7 @@ class Level {
   createEntity(type, x, y) {
     switch (type) {
       case 'player':
-        this.entities.player = new Player({pos: {x, y}}, [], this.canvases.entities.getContext('2d'));
+        this.entities.player = new Player({pos: {x, y}}, [], this.canvases.entities.getContext('2d'), null, this.inputFetcher);
         return;
       case 'coin':
         const coin = new Coin({ctx: this.canvases.main.getContext('2d'), pos: {x, y}});
@@ -554,6 +493,68 @@ module.exports = Level;
 
 
 /***/ }),
+/* 3 */
+/***/ (function(module, exports) {
+
+class SFX {
+  constructor() {
+    const jump = new Audio ("assets/audio/sfx/smw_jump.wav");
+    const coin = new Audio ("assets/audio/sfx/smw_coin.wav");
+    const stomp = new Audio ("assets/audio/sfx/smw_stomp.wav");
+    const bonk = new Audio ("assets/audio/sfx/smw_shell_ricochet.wav");
+    this.sounds = {
+      jump,
+      coin,
+      stomp,
+      bonk
+    };
+  }
+}
+
+module.exports = SFX;
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports) {
+
+class Sprite {
+  constructor({ctx, width, height, image, pos, row, col, special, offset}) {
+    this.ctx = ctx;
+    this.width = width || 32;
+    this.height = height || 32;
+    this.image = image;
+    this.row = row || 0;
+    this.col = col || 0;
+    this.pos = pos || {x: 0, y: 0};
+    this.offset = offset || {x: 0, y: 0};
+    this.special = special;
+  }
+
+  update() {
+    this.render();
+  }
+
+  render() {
+
+    this.ctx.drawImage(
+      this.image,
+      this.row * 32,
+      this.col * 32,
+      this.width,
+      this.height,
+      this.pos.x - (this.width / 2) - this.offset.x,
+      this.pos.y - (this.height / 2) - this.offset.y,
+      this.width,
+      this.height
+    );
+  }
+}
+
+module.exports = Sprite;
+
+
+/***/ }),
 /* 5 */
 /***/ (function(module, exports) {
 
@@ -582,8 +583,8 @@ const Util = __webpack_require__(5);
 const util = new Util();
 const Shape = __webpack_require__(0);
 
-const Collision = __webpack_require__(11);
-const SFX = __webpack_require__(2);
+const Collision = __webpack_require__(10);
+const SFX = __webpack_require__(3);
 const sfx = new SFX();
 
 class MovingObject {
@@ -687,13 +688,12 @@ module.exports = MovingObject;
 /***/ (function(module, exports, __webpack_require__) {
 
 const MovingObject = __webpack_require__(6);
-const Input = __webpack_require__(8);
-const MarioSprite = __webpack_require__(12);
+const MarioSprite = __webpack_require__(11);
 
-const SFX = __webpack_require__(2);
+const SFX = __webpack_require__(3);
 
 class Player extends MovingObject {
-  constructor(shapeParameters, colliders, ctx, enemies) {
+  constructor(shapeParameters, colliders, ctx, enemies, inputF) {
     shapeParameters.color = 'rgba(255,255,255,0)';
     shapeParameters.width = 20;
     shapeParameters.height = 56;
@@ -702,7 +702,7 @@ class Player extends MovingObject {
     this.ctx = ctx;
     this.sfx = new SFX();
     this.sprite = this.createSprite();
-    this.inputFetcher = new Input();
+    this.inputFetcher = inputF;
     this.status.victory = false;
     this.status.move = true;
     this.canUnDuck = false;
@@ -885,103 +885,12 @@ module.exports = Player;
 
 /***/ }),
 /* 8 */
-/***/ (function(module, exports) {
-
-const Input = function (entity) {
-
-  let inputs = {
-    leftHeld: false,
-    rightHeld: false,
-    jumpPressed: false,
-    jumpHeld: false,
-    jumpReleased: false,
-    jumpFresh: true,
-    runHeld: false,
-    downHeld: false,
-    upHeld: false,
-    keyPressed: false,
-    pausePressed: false
-  };
-
-  const update = () => {
-    inputs.jumpReleased = false;
-    inputs.jumpPressed = false;
-    inputs.keyPressed = false;
-  };
-
-  window.onmousedown = (e) => {
-    // inputs.keyPressed = true;
-  };
-
-  window.onkeydown = (e) => {
-    e.preventDefault();
-    if (e.keyCode === 87 || e.keyCode === 38) {
-      inputs.upHeld = true;
-    }
-    if (e.keyCode === 83 || e.keyCode === 40) {
-      inputs.downHeld = true;
-    }
-    if(e.keyCode === 65 || e.keyCode === 37) {
-      inputs.leftHeld = true;
-    } else if(e.keyCode === 68 || e.keyCode === 39) {
-      inputs.rightHeld = true;
-    }
-
-    if (e.keyCode === 74 || e.keyCode === 90 || e.keyCode === 32) {
-      inputs.jumpHeld = true;
-      if (inputs.jumpFresh) {
-        inputs.jumpPressed = true;
-        inputs.jumpFresh = false;
-      }
-    }
-    if (e.keyCode === 75 || e.keyCode === 88) {
-      inputs.runHeld = true;
-    }
-    //p
-    if (e.keyCode === 80) {
-      inputs.pausePressed = true;
-    }
-
-    inputs.keyPressed = true;
-  };
-
-  window.onkeyup = (e) => {
-    e.preventDefault();
-    if (e.keyCode === 87 || e.keyCode === 38) {
-      inputs.upHeld = false;
-    }
-    if (e.keyCode === 83 || e.keyCode === 40) {
-      inputs.downHeld = false;
-    }
-    if (e.keyCode === 65 || e.keyCode === 37) {
-      inputs.leftHeld = false;
-    }
-    if (e.keyCode === 68 || e.keyCode === 39) {
-      inputs.rightHeld = false;
-    }
-
-    if (e.keyCode === 74 || e.keyCode === 90  || e.keyCode === 32) {
-      inputs.jumpHeld = false;
-      inputs.jumpReleased = true;
-      inputs.jumpFresh = true;
-    }
-    if (e.keyCode === 75 || e.keyCode === 88) {
-      inputs.runHeld = false;
-    }
-  };
-
-  return {inputs, update};
-};
-
-module.exports = Input;
-
-
-/***/ }),
-/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const Game = __webpack_require__(10);
+const Game = __webpack_require__(9);
 const TileEditor = __webpack_require__(23);
+const Input = __webpack_require__(25);
+const input = new Input();
 
 const canvasBG = document.getElementById("background-canvas");
 const canvasMain = document.getElementById("main-canvas");
@@ -1003,12 +912,35 @@ Object.entries(canvases).forEach((key) => {
   key[1].height = 588;
 });
 
-new Game(canvases, volume);
-// new TileEditor(canvases);
+let editor = true;
+
+const getGameType = () => {
+  let frame = 0;
+  const animate = () => {
+    if (frame > 30) {
+        if (input.inputs.eHeld) {
+          document.getElementById("editor").style.display = "block";
+          new TileEditor(canvases, input);
+          return;
+        } else {
+          document.getElementById("editor").style.display = "none";
+          new Game(canvases, volume, input);
+          return;
+        }
+    }
+
+    frame ++;
+    requestAnimationFrame(animate);
+  };
+
+  animate();
+};
+
+getGameType();
 
 
 /***/ }),
-/* 10 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Util = __webpack_require__(5);
@@ -1018,11 +950,12 @@ const MovingObject = __webpack_require__(6);
 const Player = __webpack_require__(7);
 
 const AnimatedSprite = __webpack_require__(1);
-const Sprite = __webpack_require__(3);
+const Sprite = __webpack_require__(4);
 
-const Level1 = __webpack_require__(13);
-const Level2 = __webpack_require__(21);
-const Level3 = __webpack_require__(22);
+const Level1 = __webpack_require__(12);
+const Level2 = __webpack_require__(20);
+const Level3 = __webpack_require__(21);
+const Level4 = __webpack_require__(22);
 const levels = [Level1, Level2];
 
 const util = new Util();
@@ -1035,11 +968,14 @@ var border = {
 };
 
 class Game {
-  constructor(canvases, volume) {
+  constructor(canvases, volume, inputF) {
     this.canvasMain = canvases.main;
     this.canvases = canvases;
 
     this.volume = volume;
+
+    this.inputFetcher = inputF;
+
     this.xDim = this.canvasMain.width;
     this.yDim = this.canvasMain.height;
     this.req = null;
@@ -1210,8 +1146,7 @@ class Game {
 
   handlePause(ctx, animateCallback) {
     if (this.pause) {
-
-      if (this.input.pausePressed || (this.input.keyPressed && this.gameStart)) {
+      if (this.inputFetcher.inputs.pausePressed || (this.inputFetcher.inputs.keyPressed && this.gameStart)) {
         if (this.gameStart) {
           this.levelStart();
         } else {
@@ -1220,19 +1155,19 @@ class Game {
         this.gameStart = false;
         this.pause = false;
         //kinda lame to change input from outside
-        this.input.pausePressed = false;
-        this.input.keyPressed = false;
+        this.inputFetcher.inputs.pausePressed = false;
+        this.inputFetcher.inputs.keyPressed = false;
       }
 
       ctx.fillStyle = `rgba(0,0,0,1)`;
       ctx.fillRect(-offset.x + this.xDim / 3, -offset.y + this.xDim / 6, this.xDim / 3, this.yDim / 3);
     } else {
-      if (this.input.pausePressed) {
+      if (this.inputFetcher.inputs.pausePressed) {
         this.pause = true;
         this.pauseAudio();
         //kinda lame to change input from outside
-        this.input.pausePressed = false;
-        this.input.keyPressed = false;
+        this.inputFetcher.inputs.pausePressed = false;
+        this.inputFetcher.inputs.keyPressed = false;
       }
     }
   }
@@ -1293,8 +1228,8 @@ class Game {
 
   endLevel() {
     this.entities.player.status.victory = false;
-    this.input.pausePressed = false;
-    this.input.keyPressed = false;
+    this.inputFetcher.inputs.pausePressed = false;
+    this.inputFetcher.inputs.keyPressed = false;
     this.levelEnded = false;
     this.gameStart = true;
     this.pause = true;
@@ -1305,11 +1240,10 @@ class Game {
     const ctx = this.canvasMain.getContext("2d");
 
     // this.level = new Level(this.canvases);
-    this.level = new levels[this.currentLevel](this.canvases);
+    this.level = new levels[this.currentLevel](this.canvases, this.inputFetcher);
     this.colliders = this.level.colliders;
     this.tiles = this.level.tiles;
     this.entities = this.level.entities;
-    this.input = this.entities.player.inputFetcher.inputs;
 
     border.x.max = 100000;
     border.y.min = 32;
@@ -1434,7 +1368,7 @@ module.exports = Game;
 
 
 /***/ }),
-/* 11 */
+/* 10 */
 /***/ (function(module, exports) {
 
 class Collision {
@@ -1708,7 +1642,7 @@ module.exports = Collision;
 
 
 /***/ }),
-/* 12 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const AnimatedSprite = __webpack_require__(1);
@@ -1779,14 +1713,14 @@ module.exports = MarioSprite;
 
 
 /***/ }),
-/* 13 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const LevelCreator = __webpack_require__(4);
+const LevelCreator = __webpack_require__(2);
 
 class Level1 extends LevelCreator {
-  constructor(ctx) {
-    super(ctx);
+  constructor(canvases, inputF) {
+    super(canvases, inputF);
     this.createLevel(this.mapLevel());
   }
 
@@ -1798,6 +1732,32 @@ class Level1 extends LevelCreator {
           wr, ch, bt, bm, ft, fm, tt, go,
           gg, ib, co, tw, wt
         } = this.getKeys();
+
+    const m8 = {
+      chunk: [
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[pl,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,en,__,__],
+				[to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to,to],
+				[mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,mi,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+				[__,we,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__]
+      ]
+    };
 
     const m5 = {
       chunk: [
@@ -1973,12 +1933,12 @@ module.exports = Level1;
 
 
 /***/ }),
-/* 14 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const CoinSprite = __webpack_require__(15);
-const SFX = __webpack_require__(2);
+const CoinSprite = __webpack_require__(14);
+const SFX = __webpack_require__(3);
 const sfx = new SFX();
 
 class Coin {
@@ -2013,7 +1973,7 @@ module.exports = Coin;
 
 
 /***/ }),
-/* 15 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const AnimatedSprite = __webpack_require__(1);
@@ -2058,11 +2018,11 @@ module.exports = CoinSprite;
 
 
 /***/ }),
-/* 16 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const ItemBlockSprite = __webpack_require__(17);
+const ItemBlockSprite = __webpack_require__(16);
 
 class ItemBlock {
   constructor({ctx, pos}) {
@@ -2120,7 +2080,7 @@ module.exports = ItemBlock;
 
 
 /***/ }),
-/* 17 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const AnimatedSprite = __webpack_require__(1);
@@ -2168,13 +2128,13 @@ module.exports = ItemBlockSprite;
 
 
 /***/ }),
-/* 18 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
 const MovingObject = __webpack_require__(6);
-const GaloombaSprite = __webpack_require__(19);
-const SFX = __webpack_require__(2);
+const GaloombaSprite = __webpack_require__(18);
+const SFX = __webpack_require__(3);
 const sfx = new SFX();
 
 class Galoomba extends MovingObject {
@@ -2241,7 +2201,7 @@ module.exports = Galoomba;
 
 
 /***/ }),
-/* 19 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const AnimatedSprite = __webpack_require__(1);
@@ -2282,11 +2242,11 @@ module.exports = GaloombaSprite;
 
 
 /***/ }),
-/* 20 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const Sprite = __webpack_require__(3);
+const Sprite = __webpack_require__(4);
 
 class GoalTape {
   constructor(pos, ctx) {
@@ -2363,14 +2323,14 @@ module.exports = GoalTape;
 
 
 /***/ }),
-/* 21 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const LevelCreator = __webpack_require__(4);
+const LevelCreator = __webpack_require__(2);
 
 class Level2 extends LevelCreator {
-  constructor(ctx) {
-    super(ctx);
+  constructor(canvases, inputF) {
+    super(canvases, inputF);
     this.createLevel(this.mapLevel());
   }
 
@@ -2444,14 +2404,14 @@ module.exports = Level2;
 
 
 /***/ }),
-/* 22 */
+/* 21 */
 /***/ (function(module, exports, __webpack_require__) {
 
-const LevelCreator = __webpack_require__(4);
+const LevelCreator = __webpack_require__(2);
 
 class Level3 extends LevelCreator {
-  constructor(ctx) {
-    super(ctx);
+  constructor(canvases, inputF) {
+    super(canvases, inputF);
     this.createLevel(this.mapLevel());
   }
 
@@ -2490,13 +2450,54 @@ module.exports = Level3;
 
 
 /***/ }),
+/* 22 */
+/***/ (function(module, exports, __webpack_require__) {
+
+const LevelCreator = __webpack_require__(2);
+
+class Level4 extends LevelCreator {
+  constructor(canvases, inputF) {
+    super(canvases, inputF);
+    this.createLevel(this.mapLevel());
+  }
+
+  mapLevel() {
+    let { pl, en, ki, tl, to, tr, ml, mi,
+          mr, bl, bo, br, __, ww, we, wl,
+          wr, wb, wd, ch, bt, bm, ft, fm,
+          tt, go, gg, ib, co, tw, wt, td, tu
+        } = this.getKeys();
+
+    const map = {
+      chunk: [
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,pl,__,__,__,__,__,en,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__,__],
+        [__,__,__,__,__,__,bl,to,to,to,to,to,bo,bo,tr,__,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,__,bo,bo,bo,bo,__,__,__],
+        [__,__,__,__,__,__,__,__,__,__,__,bo,bo,bo,bo,__,__,__,__],
+        [__,__,__,__,__,__,__,__,bo,__,__,bo,bo,bo,bo,__,bo,bo,__],
+        [__,__,__,__,__,__,__,__,__,__,bo,bo,bo,__,__,bo,bo,bo,bo],
+        [__,__,__,__,__,__,__,__,bo,bo,bo,bo,bo,__,bo,__,__,__,__],
+        [__,__,__,__,bo,bo,bo,__,__,bo,bo,__,__,__,__,__,__,__,__]
+      ]
+    };
+
+    return map;
+  }
+}
+
+module.exports = Level4;
+
+
+/***/ }),
 /* 23 */
 /***/ (function(module, exports, __webpack_require__) {
 
 const Shape = __webpack_require__(0);
-const LevelCreator = __webpack_require__(4);
-const Input = __webpack_require__(8);
-const input = new Input();
+const LevelCreator = __webpack_require__(2);
 
 const CreateFile = __webpack_require__(24);
 
@@ -2512,7 +2513,8 @@ var mouseUp = false;
 var mouseDown2 = false;
 
 class TileEditor {
-  constructor(canvases) {
+  constructor(canvases, inputF) {
+    this.inputFetcher = inputF;
     this.canvases = canvases;
     this.ctx = this.canvases.main.getContext('2d');
     this.tool = 'draw';
@@ -2821,28 +2823,28 @@ class TileEditor {
   }
 
   changeCurrentKey() {
-    if (input.inputs.leftHeld) {
+    if (this.inputFetcher.inputs.leftHeld) {
       if (this.currentKeyIdx > 0) {
         this.currentKeyIdx -= 1;
       }
       this.currentKey = this.keys[this.currentKeyIdx];
       this.getPreviewTile();
-      input.inputs.leftHeld = false;
+      this.inputFetcher.inputs.leftHeld = false;
     }
-    if (input.inputs.rightHeld) {
+    if (this.inputFetcher.inputs.rightHeld) {
       if (this.currentKeyIdx < this.keys.length - 1) {
         this.currentKeyIdx += 1;
       }
       this.currentKey = this.keys[this.currentKeyIdx];
       this.getPreviewTile();
-      input.inputs.rightHeld = false;
+      this.inputFetcher.inputs.rightHeld = false;
     }
   }
 
   changeCurrentTool() {
-    if (input.inputs.downHeld) {
+    if (this.inputFetcher.inputs.downHeld) {
       this.tool = (this.tool === 'draw') ? 'select' : 'draw';
-      input.inputs.downHeld = false;
+      this.inputFetcher.inputs.downHeld = false;
     }
   }
 
@@ -2861,8 +2863,8 @@ class TileEditor {
 `const LevelCreator = require('./level_creator');
 
 class LevelX extends LevelCreator {
-  constructor(ctx) {
-    super(ctx);
+  constructor(canvases, inputF) {
+    super(canvases, inputF);
     this.createLevel(this.mapLevel());
   }
 
@@ -2946,10 +2948,10 @@ module.exports = LevelX;`
   start() {
     const animate = () => {
 
-      if (input.inputs.jumpPressed) {
-        input.inputs.jumpPressed = false;
+      if (this.inputFetcher.inputs.jumpPressed) {
+        this.inputFetcher.inputs.jumpPressed = false;
       }
-      if (input.inputs.jumpHeld) {
+      if (this.inputFetcher.inputs.jumpHeld) {
         this.getPos();
         this.moveViewport();
       }
@@ -3058,6 +3060,105 @@ const createFile = (value) => {
 };
 
 module.exports = createFile;
+
+
+/***/ }),
+/* 25 */
+/***/ (function(module, exports) {
+
+const Input = function (entity) {
+
+  let codes = [32, 37, 38, 39, 40, 65, 68, 74, 75, 80, 83, 87, 88, 90];
+
+  let inputs = {
+    leftHeld: false,
+    rightHeld: false,
+    jumpPressed: false,
+    jumpHeld: false,
+    jumpReleased: false,
+    jumpFresh: true,
+    runHeld: false,
+    downHeld: false,
+    upHeld: false,
+    keyPressed: false,
+    pausePressed: false,
+    eHeld: false
+  };
+
+  const update = () => {
+    inputs.jumpReleased = false;
+    inputs.jumpPressed = false;
+    inputs.keyPressed = false;
+  };
+
+  window.onkeydown = (e) => {
+    if (codes.includes(e.keyCode)) {
+      e.preventDefault();
+    }
+    if (e.keyCode === 69) {
+      inputs.eHeld = true;
+    }
+    if (e.keyCode === 87 || e.keyCode === 38) {
+      inputs.upHeld = true;
+    }
+    if (e.keyCode === 83 || e.keyCode === 40) {
+      inputs.downHeld = true;
+    }
+    if(e.keyCode === 65 || e.keyCode === 37) {
+      inputs.leftHeld = true;
+    } else if(e.keyCode === 68 || e.keyCode === 39) {
+      inputs.rightHeld = true;
+    }
+
+    if (e.keyCode === 74 || e.keyCode === 90 || e.keyCode === 32) {
+      inputs.jumpHeld = true;
+      if (inputs.jumpFresh) {
+        inputs.jumpPressed = true;
+        inputs.jumpFresh = false;
+      }
+    }
+    if (e.keyCode === 75 || e.keyCode === 88) {
+      inputs.runHeld = true;
+    }
+    //p
+    if (e.keyCode === 80) {
+      inputs.pausePressed = true;
+    }
+
+    inputs.keyPressed = true;
+  };
+
+  window.onkeyup = (e) => {
+    if (codes.includes(e.keyCode)) {
+      e.preventDefault();
+    }
+    if (e.keyCode === 87 || e.keyCode === 38) {
+      inputs.upHeld = false;
+    }
+    if (e.keyCode === 83 || e.keyCode === 40) {
+      inputs.downHeld = false;
+    }
+    if (e.keyCode === 65 || e.keyCode === 37) {
+      inputs.leftHeld = false;
+    }
+    if (e.keyCode === 68 || e.keyCode === 39) {
+      inputs.rightHeld = false;
+    }
+
+    if (e.keyCode === 74 || e.keyCode === 90  || e.keyCode === 32) {
+      inputs.jumpHeld = false;
+      inputs.jumpReleased = true;
+      inputs.jumpFresh = true;
+    }
+    if (e.keyCode === 75 || e.keyCode === 88) {
+      inputs.runHeld = false;
+    }
+  };
+
+  return {inputs, update};
+};
+
+module.exports = Input;
 
 
 /***/ })
