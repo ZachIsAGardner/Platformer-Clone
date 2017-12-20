@@ -7,12 +7,12 @@
     <title>Super Mario World Clone</title>
     <link rel="icon" href="mario-icon.png">
     <script type="text/javascript">
-      function testClick(el) {
+      function setActive(el) {
         el.className = (el.className === "active") ? "" : "active";
       }
     </script>
   </head>
-  <body>
+  <body onclick="closeModal(document.getElementById('info-modal'))">
     <main>
       <header>
         <a href="http://zachisagardner.com/" class="name">Zachary Gardner</a>
@@ -52,8 +52,8 @@
       </div>
 
       <div class="info">
-        <img id="info" src="assets/images/info.png" alt="info" onclick="testClick(document.getElementById('info-modal'))">
-        <img id="volume" src="assets/images/volume.png" alt="volume" onclick="testClick(this)">
+        <img id="info" src="assets/images/info.png" alt="info" onclick="setActive(document.getElementById('info-modal'))">
+        <img id="volume" src="assets/images/volume.png" alt="volume" onclick="setActive(this)">
       </div>
       <section id="info-modal">
         <div>
@@ -67,6 +67,7 @@
           <p>Access tile editor by holding "e" after refresh.</p>
           <p><strong>Left Click:</strong> draw current tile</p>
           <p><strong>Right Click:</strong> delete tile</p>
+          <p><strong>Space Bar:</strong> Move Viewport</p>
           <p><strong>A/ D:</strong> switch current tile</p>
           <p><strong>S:</strong> switch tool</p>
 
